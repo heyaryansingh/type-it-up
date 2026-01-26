@@ -35,10 +35,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Supabase database is connected and accessible from serverless functions
   3. Storage backend (R2 or Supabase Storage) accepts file uploads
   4. Hugging Face Spaces endpoint responds to health checks
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] TBD (to be planned)
+- [ ] 01-01-PLAN.md — Initialize Next.js with TypeScript and configure Supabase connection
+- [ ] 01-02-PLAN.md — Set up storage backend (R2 or Supabase Storage) with upload/retrieve operations
+- [ ] 01-03-PLAN.md — Deploy Hugging Face Space with OCR model and health endpoint
+- [ ] 01-04-PLAN.md — Deploy to Vercel and verify full stack integration
 
 ### Phase 2: Input Pipeline
 **Goal**: Users can upload images/PDFs and system preprocesses them for OCR
@@ -192,7 +195,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/TBD | Not started | - |
+| 1. Foundation | 0/4 | Not started | - |
 | 2. Input Pipeline | 0/TBD | Not started | - |
 | 3. Layout Detection | 0/TBD | Not started | - |
 | 4. Text Recognition | 0/TBD | Not started | - |
