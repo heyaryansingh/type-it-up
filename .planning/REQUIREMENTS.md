@@ -114,44 +114,44 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INPUT-01 | TBD | Pending |
-| INPUT-02 | TBD | Pending |
-| INPUT-03 | TBD | Pending |
-| INPUT-04 | TBD | Pending |
-| INPUT-05 | TBD | Pending |
-| INPUT-06 | TBD | Pending |
-| LAYOUT-01 | TBD | Pending |
-| LAYOUT-02 | TBD | Pending |
-| LAYOUT-03 | TBD | Pending |
-| LAYOUT-04 | TBD | Pending |
-| LAYOUT-05 | TBD | Pending |
-| OCR-01 | TBD | Pending |
-| OCR-02 | TBD | Pending |
-| OCR-03 | TBD | Pending |
-| OCR-04 | TBD | Pending |
-| OCR-05 | TBD | Pending |
-| OUTPUT-01 | TBD | Pending |
-| OUTPUT-02 | TBD | Pending |
-| OUTPUT-03 | TBD | Pending |
-| OUTPUT-04 | TBD | Pending |
-| OUTPUT-05 | TBD | Pending |
-| OUTPUT-06 | TBD | Pending |
-| EDITOR-01 | TBD | Pending |
-| EDITOR-02 | TBD | Pending |
-| EDITOR-03 | TBD | Pending |
-| EDITOR-04 | TBD | Pending |
-| EDITOR-05 | TBD | Pending |
-| AI-01 | TBD | Pending |
-| AI-02 | TBD | Pending |
-| AI-03 | TBD | Pending |
-| AI-04 | TBD | Pending |
-| AI-05 | TBD | Pending |
+| INPUT-01 | Phase 2 - Input Pipeline | Pending |
+| INPUT-02 | Phase 2 - Input Pipeline | Pending |
+| INPUT-03 | Phase 2 - Input Pipeline | Pending |
+| INPUT-04 | Phase 2 - Input Pipeline | Pending |
+| INPUT-05 | Phase 2 - Input Pipeline | Pending |
+| INPUT-06 | Phase 2 - Input Pipeline | Pending |
+| LAYOUT-01 | Phase 3 - Layout Detection | Pending |
+| LAYOUT-02 | Phase 3 - Layout Detection | Pending |
+| LAYOUT-03 | Phase 3 - Layout Detection | Pending |
+| LAYOUT-04 | Phase 3 - Layout Detection | Pending |
+| LAYOUT-05 | Phase 3 - Layout Detection | Pending |
+| OCR-01 | Phase 4 - Text Recognition | Pending |
+| OCR-02 | Phase 5 - Math Recognition | Pending |
+| OCR-03 | Phase 6 - Figure Extraction | Pending |
+| OCR-04 | Phase 7 - Reading Order & Assembly | Pending |
+| OCR-05 | Phase 4 - Text Recognition | Pending |
+| OUTPUT-01 | Phase 8 - Output Rendering | Pending |
+| OUTPUT-02 | Phase 8 - Output Rendering | Pending |
+| OUTPUT-03 | Phase 9 - Compilation & Export | Pending |
+| OUTPUT-04 | Phase 9 - Compilation & Export | Pending |
+| OUTPUT-05 | Phase 8 - Output Rendering | Pending |
+| OUTPUT-06 | Phase 8 - Output Rendering | Pending |
+| EDITOR-01 | Phase 10 - Interactive Editor | Pending |
+| EDITOR-02 | Phase 10 - Interactive Editor | Pending |
+| EDITOR-03 | Phase 10 - Interactive Editor | Pending |
+| EDITOR-04 | Phase 10 - Interactive Editor | Pending |
+| EDITOR-05 | Phase 10 - Interactive Editor | Pending |
+| AI-01 | Phase 11 - AI Suggestions | Pending |
+| AI-02 | Phase 11 - AI Suggestions | Pending |
+| AI-03 | Phase 11 - AI Suggestions | Pending |
+| AI-04 | Phase 11 - AI Suggestions | Pending |
+| AI-05 | Phase 11 - AI Suggestions | Pending |
 
 **Coverage:**
 - v1 requirements: 27 total
-- Mapped to phases: 0
-- Unmapped: 27
+- Mapped to phases: 27
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-26*
-*Last updated: 2026-01-26 after initial definition*
+*Last updated: 2026-01-26 after roadmap creation*
