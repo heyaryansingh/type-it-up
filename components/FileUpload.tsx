@@ -15,7 +15,7 @@ interface UploadedFile {
 interface FileUploadProps {
   onUploadComplete?: (result: {
     projectId: string;
-    pages: { id: string; pageNumber: number }[];
+    pages: { id: string; pageNumber: number; originalPath: string }[];
   }) => void;
   onError?: (error: string) => void;
   maxFiles?: number;

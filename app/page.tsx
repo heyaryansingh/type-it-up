@@ -2,14 +2,221 @@
 
 import { useState } from "react";
 import FileUpload from "@/components/FileUpload";
+import DocumentEditor from "@/components/DocumentEditor";
+import SuggestionsPanel from "@/components/SuggestionsPanel";
+import type { DocumentJSON } from "@/lib/types";
+import type { Suggestion } from "@/lib/ai-suggestions";
+
+type AppState = "upload" | "processing" | "editing";
 
 export default function Home() {
+  const [appState, setAppState] = useState<AppState>("upload");
   const [uploadResult, setUploadResult] = useState<{
     projectId: string;
-    pages: { id: string; pageNumber: number }[];
+    pages: { id: string; pageNumber: number; originalPath: string }[];
   } | null>(null);
+  const [document, setDocument] = useState<DocumentJSON | null>(null);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [processingStatus, setProcessingStatus] = useState<string>("");
 
+  const handleUploadComplete = (result: {
+    projectId: string;
+    pages: { id: string; pageNumber: number; originalPath: string }[];
+  }) => {
+    setUploadResult(result);
+    setError(null);
+  };
+
+  const handleProcess = async () => {
+    if (!uploadResult) return;
+
+    setAppState("processing");
+    setProcessingStatus("Processing document...");
+
+    try {
+      // Process the first page (can extend to multiple pages)
+      const firstPage = uploadResult.pages[0];
+      const response = await fetch("/api/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: uploadResult.projectId,
+          pageId: firstPage.id,
+          originalPath: firstPage.originalPath,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Processing failed");
+      }
+
+      setDocument(result.document);
+      setProcessingStatus("Analyzing for suggestions...");
+
+      // Run AI analysis
+      try {
+        const analyzeResponse = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            document: result.document,
+            // groqApiKey can be added from env or user input
+          }),
+        });
+
+        const analyzeResult = await analyzeResponse.json();
+        if (analyzeResult.success) {
+          setSuggestions(analyzeResult.suggestions || []);
+        }
+      } catch {
+        // Analysis is optional, continue without suggestions
+        console.warn("AI analysis unavailable");
+      }
+
+      setAppState("editing");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Processing failed");
+      setAppState("upload");
+    }
+  };
+
+  const handleExport = async (format: "latex" | "markdown" | "overleaf") => {
+    if (!document) return;
+
+    try {
+      const response = await fetch("/api/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          document,
+          format,
+          title: document.title || "document",
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Export failed");
+      }
+
+      // Get the blob and download it
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = window.document.createElement("a");
+      a.href = url;
+
+      if (format === "latex") {
+        a.download = `${document.title || "document"}.tex`;
+      } else if (format === "markdown") {
+        a.download = `${document.title || "document"}.md`;
+      } else {
+        a.download = `${document.title || "document"}-overleaf.zip`;
+      }
+
+      window.document.body.appendChild(a);
+      a.click();
+      window.document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Export failed");
+    }
+  };
+
+  const handleJumpToRegion = (regionId: string, pageNumber: number) => {
+    // Could implement page navigation and region highlighting here
+    console.log("Jump to region:", regionId, "on page:", pageNumber);
+  };
+
+  const handleDismissSuggestion = (id: string) => {
+    setSuggestions((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const handleReset = () => {
+    setAppState("upload");
+    setUploadResult(null);
+    setDocument(null);
+    setSuggestions([]);
+    setError(null);
+  };
+
+  // Processing state
+  if (appState === "processing") {
+    return (
+      <main className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-6 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            {processingStatus}
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            This may take 30-60 seconds per page
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  // Editing state
+  if (appState === "editing" && document) {
+    return (
+      <main className="min-h-screen bg-white dark:bg-gray-950 flex flex-col">
+        {/* Header */}
+        <header className="border-b border-gray-200 dark:border-gray-800">
+          <div className="flex items-center justify-between px-6 py-4">
+            <button
+              onClick={handleReset}
+              className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            >
+              <svg
+                className="w-5 h-5 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                />
+              </svg>
+              Back
+            </button>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+              type-it-up
+            </h1>
+            <div className="w-20" /> {/* Spacer for alignment */}
+          </div>
+        </header>
+
+        {/* Main content */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Editor */}
+          <div className="flex-1">
+            <DocumentEditor
+              document={document}
+              onDocumentChange={setDocument}
+              onExport={handleExport}
+            />
+          </div>
+
+          {/* Suggestions sidebar */}
+          <div className="w-80 border-l border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 overflow-hidden">
+            <SuggestionsPanel
+              suggestions={suggestions}
+              onDismiss={handleDismissSuggestion}
+              onJumpToRegion={handleJumpToRegion}
+            />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // Upload state (default)
   return (
     <main className="min-h-screen bg-white dark:bg-gray-950">
       {/* Header */}
@@ -38,10 +245,7 @@ export default function Home() {
 
             {/* Upload */}
             <FileUpload
-              onUploadComplete={(result) => {
-                setUploadResult(result);
-                setError(null);
-              }}
+              onUploadComplete={handleUploadComplete}
               onError={(err) => setError(err)}
             />
 
@@ -160,18 +364,21 @@ export default function Home() {
               </p>
             </div>
 
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              </div>
+            )}
+
             <div className="space-x-4">
               <button
-                onClick={() => setUploadResult(null)}
+                onClick={handleReset}
                 className="px-6 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 Upload More
               </button>
               <button
-                onClick={() => {
-                  // TODO: Navigate to processing view
-                  alert("Processing view coming in Phase 3+");
-                }}
+                onClick={handleProcess}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 Process Notes
