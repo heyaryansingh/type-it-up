@@ -5,7 +5,7 @@
  * This service parses that output into our canonical JSON format.
  */
 
-import { convertDocument, healthCheck } from "./ml-client";
+import { convertDocument, healthCheck, isMLConfigured } from "./ml-client";
 import type { DocumentJSON, PageJSON, RegionJSON, BoundingBox } from "./types";
 
 export interface ProcessingOptions {
@@ -29,6 +29,16 @@ export async function processDocument(
   projectId: string,
   options: ProcessingOptions = {}
 ): Promise<ProcessingResult> {
+  // Check if ML service is configured
+  if (!isMLConfigured()) {
+    // Return demo document when ML not configured
+    return {
+      success: true,
+      document: createDemoDocument(projectId, filename),
+      rawMarkdown: getDemoMarkdown(),
+    };
+  }
+
   try {
     // Call ML service
     const result = await convertDocument(file, filename);
@@ -58,6 +68,112 @@ export async function processDocument(
       error: error instanceof Error ? error.message : "Processing failed",
     };
   }
+}
+
+/**
+ * Create a demo document for when ML service isn't configured
+ */
+function createDemoDocument(projectId: string, filename: string): DocumentJSON {
+  return {
+    projectId,
+    title: filename.replace(/\.[^.]+$/, ""),
+    pages: [
+      {
+        pageNumber: 1,
+        width: 800,
+        height: 1000,
+        regions: [
+          {
+            id: `region-${projectId}-1-1`,
+            type: "text",
+            bbox: { x: 5, y: 5, width: 90, height: 10 },
+            confidence: 0.95,
+            readingOrder: 0,
+            content: {
+              text: "Introduction to Calculus",
+            },
+          },
+          {
+            id: `region-${projectId}-1-2`,
+            type: "text",
+            bbox: { x: 5, y: 18, width: 90, height: 15 },
+            confidence: 0.85,
+            readingOrder: 1,
+            content: {
+              text: "The fundamental theorem of calculus establishes the relationship between differentiation and integration. Consider the following integral:",
+            },
+          },
+          {
+            id: `region-${projectId}-1-3`,
+            type: "math",
+            bbox: { x: 10, y: 35, width: 80, height: 12 },
+            confidence: 0.92,
+            readingOrder: 2,
+            content: {
+              latex: "\\int_{a}^{b} f(x) \\, dx = F(b) - F(a)",
+            },
+          },
+          {
+            id: `region-${projectId}-1-4`,
+            type: "text",
+            bbox: { x: 5, y: 50, width: 90, height: 12 },
+            confidence: 0.88,
+            readingOrder: 3,
+            content: {
+              text: "where $F(x)$ is the antiderivative of $f(x)$. This leads to the important result:",
+            },
+          },
+          {
+            id: `region-${projectId}-1-5`,
+            type: "math",
+            bbox: { x: 10, y: 65, width: 80, height: 15 },
+            confidence: 0.90,
+            readingOrder: 4,
+            content: {
+              latex: "\\frac{d}{dx} \\int_{a}^{x} f(t) \\, dt = f(x)",
+            },
+          },
+          {
+            id: `region-${projectId}-1-6`,
+            type: "figure",
+            bbox: { x: 20, y: 82, width: 60, height: 15 },
+            confidence: 0.85,
+            readingOrder: 5,
+            content: {
+              imagePath: "figures/graph.png",
+            },
+          },
+        ],
+      },
+    ],
+    metadata: {
+      createdAt: new Date().toISOString(),
+      processedAt: new Date().toISOString(),
+      totalPages: 1,
+    },
+  };
+}
+
+/**
+ * Get demo markdown content
+ */
+function getDemoMarkdown(): string {
+  return `# Introduction to Calculus
+
+The fundamental theorem of calculus establishes the relationship between differentiation and integration. Consider the following integral:
+
+$$
+\\int_{a}^{b} f(x) \\, dx = F(b) - F(a)
+$$
+
+where $F(x)$ is the antiderivative of $f(x)$. This leads to the important result:
+
+$$
+\\frac{d}{dx} \\int_{a}^{x} f(t) \\, dt = f(x)
+$$
+
+![Graph](figures/graph.png)
+`;
 }
 
 /**

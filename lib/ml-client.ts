@@ -5,6 +5,13 @@
 
 const HF_SPACE_URL = process.env.HF_SPACE_URL || process.env.NEXT_PUBLIC_HF_SPACE_URL;
 
+/**
+ * Check if the ML service is configured
+ */
+export function isMLConfigured(): boolean {
+  return !!HF_SPACE_URL && HF_SPACE_URL !== "your_hf_space_url_here";
+}
+
 export interface HealthCheckResponse {
   status: string;
   model: string;
