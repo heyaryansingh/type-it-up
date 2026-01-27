@@ -1,0 +1,234 @@
+/**
+ * OCR Service - Calls the ML backend (Marker) for document processing
+ *
+ * Marker outputs markdown with embedded LaTeX and images.
+ * This service parses that output into our canonical JSON format.
+ */
+
+import { convertDocument, healthCheck } from "./ml-client";
+import type { DocumentJSON, PageJSON, RegionJSON, BoundingBox } from "./types";
+
+export interface ProcessingOptions {
+  extractFigures?: boolean;
+  enhanceContrast?: boolean;
+}
+
+export interface ProcessingResult {
+  success: boolean;
+  document?: DocumentJSON;
+  rawMarkdown?: string;
+  error?: string;
+}
+
+/**
+ * Process a document through the ML service
+ */
+export async function processDocument(
+  file: File | Blob,
+  filename: string,
+  projectId: string,
+  options: ProcessingOptions = {}
+): Promise<ProcessingResult> {
+  try {
+    // Call ML service
+    const result = await convertDocument(file, filename);
+
+    if (result.status !== "ready" && !result.markdown) {
+      return {
+        success: false,
+        error: result.error || "ML service returned no content",
+      };
+    }
+
+    // Parse markdown into our canonical format
+    const document = parseMarkdownToDocument(
+      result.markdown || "",
+      projectId,
+      result.images || []
+    );
+
+    return {
+      success: true,
+      document,
+      rawMarkdown: result.markdown,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Processing failed",
+    };
+  }
+}
+
+/**
+ * Parse markdown output from Marker into our canonical JSON format
+ */
+function parseMarkdownToDocument(
+  markdown: string,
+  projectId: string,
+  images: { path: string; data: string }[]
+): DocumentJSON {
+  const pages: PageJSON[] = [];
+  const regions: RegionJSON[] = [];
+
+  // Split by page markers if present, otherwise treat as single page
+  const pageContents = markdown.split(/\n---\n/).filter(Boolean);
+
+  let globalReadingOrder = 0;
+
+  pageContents.forEach((pageContent, pageIndex) => {
+    const pageRegions: RegionJSON[] = [];
+
+    // Parse different content types
+    const lines = pageContent.split("\n");
+    let currentRegion: Partial<RegionJSON> | null = null;
+    let lineNumber = 0;
+
+    for (const line of lines) {
+      lineNumber++;
+
+      // Detect math blocks ($$...$$)
+      if (line.trim().startsWith("$$")) {
+        if (currentRegion) {
+          pageRegions.push(finalizeRegion(currentRegion, globalReadingOrder++));
+        }
+        currentRegion = {
+          id: `region-${projectId}-${pageIndex}-${lineNumber}`,
+          type: "math",
+          bbox: estimateBbox(lineNumber, lines.length),
+          confidence: 0.85,
+          content: { latex: "" },
+        };
+        continue;
+      }
+
+      if (line.trim().endsWith("$$") && currentRegion?.type === "math") {
+        currentRegion.content!.latex += line.replace(/\$\$/g, "");
+        pageRegions.push(finalizeRegion(currentRegion, globalReadingOrder++));
+        currentRegion = null;
+        continue;
+      }
+
+      if (currentRegion?.type === "math") {
+        currentRegion.content!.latex += line + "\n";
+        continue;
+      }
+
+      // Detect inline math ($...$)
+      const inlineMathMatch = line.match(/\$([^$]+)\$/g);
+
+      // Detect images
+      const imageMatch = line.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+      if (imageMatch) {
+        if (currentRegion) {
+          pageRegions.push(finalizeRegion(currentRegion, globalReadingOrder++));
+          currentRegion = null;
+        }
+        pageRegions.push({
+          id: `region-${projectId}-${pageIndex}-${lineNumber}`,
+          type: "figure",
+          bbox: estimateBbox(lineNumber, lines.length),
+          confidence: 0.9,
+          readingOrder: globalReadingOrder++,
+          content: {
+            imagePath: imageMatch[2],
+          },
+        });
+        continue;
+      }
+
+      // Detect headers (potential section titles)
+      if (line.match(/^#{1,6}\s/)) {
+        if (currentRegion) {
+          pageRegions.push(finalizeRegion(currentRegion, globalReadingOrder++));
+        }
+        currentRegion = {
+          id: `region-${projectId}-${pageIndex}-${lineNumber}`,
+          type: "text",
+          bbox: estimateBbox(lineNumber, lines.length),
+          confidence: 0.95,
+          content: { text: line.replace(/^#+\s*/, "") },
+        };
+        pageRegions.push(finalizeRegion(currentRegion, globalReadingOrder++));
+        currentRegion = null;
+        continue;
+      }
+
+      // Regular text with potential inline math
+      if (line.trim()) {
+        if (!currentRegion || currentRegion.type !== "text") {
+          if (currentRegion) {
+            pageRegions.push(finalizeRegion(currentRegion, globalReadingOrder++));
+          }
+          currentRegion = {
+            id: `region-${projectId}-${pageIndex}-${lineNumber}`,
+            type: "text",
+            bbox: estimateBbox(lineNumber, lines.length),
+            confidence: 0.85,
+            content: { text: "" },
+          };
+        }
+        currentRegion.content!.text = (currentRegion.content!.text || "") + line + "\n";
+      }
+    }
+
+    // Finalize any remaining region
+    if (currentRegion) {
+      pageRegions.push(finalizeRegion(currentRegion, globalReadingOrder++));
+    }
+
+    pages.push({
+      pageNumber: pageIndex + 1,
+      width: 0, // Will be filled from actual image dimensions
+      height: 0,
+      regions: pageRegions,
+    });
+  });
+
+  return {
+    projectId,
+    pages,
+    metadata: {
+      createdAt: new Date().toISOString(),
+      processedAt: new Date().toISOString(),
+      totalPages: pages.length,
+    },
+  };
+}
+
+function finalizeRegion(
+  partial: Partial<RegionJSON>,
+  readingOrder: number
+): RegionJSON {
+  return {
+    id: partial.id || `region-${Date.now()}`,
+    type: partial.type || "text",
+    bbox: partial.bbox || { x: 0, y: 0, width: 100, height: 100 },
+    confidence: partial.confidence || 0.5,
+    readingOrder,
+    content: partial.content || {},
+  };
+}
+
+function estimateBbox(lineNumber: number, totalLines: number): BoundingBox {
+  // Rough estimation based on line position
+  const lineHeight = 100 / Math.max(totalLines, 1);
+  return {
+    x: 5,
+    y: (lineNumber - 1) * lineHeight,
+    width: 90,
+    height: lineHeight,
+  };
+}
+
+/**
+ * Check if the ML service is available
+ */
+export async function checkMLServiceHealth(): Promise<boolean> {
+  try {
+    await healthCheck();
+    return true;
+  } catch {
+    return false;
+  }
+}
