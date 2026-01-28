@@ -1,50 +1,39 @@
 "use client";
 
-import { useState } from "react";
-import FileUpload from "@/components/FileUpload";
-import DocumentEditor from "@/components/DocumentEditor";
-import SuggestionsPanel from "@/components/SuggestionsPanel";
+import { useState, useRef } from "react";
 import type { DocumentJSON } from "@/lib/types";
-import type { Suggestion } from "@/lib/ai-suggestions";
 
-type AppState = "upload" | "processing" | "editing";
+type AppState = "upload" | "processing" | "result";
 
 export default function Home() {
   const [appState, setAppState] = useState<AppState>("upload");
-  const [uploadResult, setUploadResult] = useState<{
-    projectId: string;
-    pages: { id: string; pageNumber: number; originalPath: string }[];
-  } | null>(null);
   const [document, setDocument] = useState<DocumentJSON | null>(null);
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [processingStatus, setProcessingStatus] = useState<string>("");
+  const [processingStatus, setProcessingStatus] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleUploadComplete = (result: {
-    projectId: string;
-    pages: { id: string; pageNumber: number; originalPath: string }[];
-  }) => {
-    setUploadResult(result);
-    setError(null);
-  };
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const handleProcess = async () => {
-    if (!uploadResult) return;
+    // Show preview
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
 
+    // Start processing
     setAppState("processing");
-    setProcessingStatus("Processing document...");
+    setProcessingStatus("Analyzing your handwritten notes...");
+    setError(null);
 
     try {
-      // Process the first page (can extend to multiple pages)
-      const firstPage = uploadResult.pages[0];
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("projectId", crypto.randomUUID());
+
       const response = await fetch("/api/process", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId: uploadResult.projectId,
-          pageId: firstPage.id,
-          originalPath: firstPage.originalPath,
-        }),
+        body: formData,
       });
 
       const result = await response.json();
@@ -54,36 +43,14 @@ export default function Home() {
       }
 
       setDocument(result.document);
-      setProcessingStatus("Analyzing for suggestions...");
-
-      // Run AI analysis
-      try {
-        const analyzeResponse = await fetch("/api/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            document: result.document,
-            // groqApiKey can be added from env or user input
-          }),
-        });
-
-        const analyzeResult = await analyzeResponse.json();
-        if (analyzeResult.success) {
-          setSuggestions(analyzeResult.suggestions || []);
-        }
-      } catch {
-        // Analysis is optional, continue without suggestions
-        console.warn("AI analysis unavailable");
-      }
-
-      setAppState("editing");
+      setAppState("result");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Processing failed");
       setAppState("upload");
     }
   };
 
-  const handleExport = async (format: "latex" | "markdown" | "overleaf") => {
+  const handleExport = async (format: "latex" | "markdown") => {
     if (!document) return;
 
     try {
@@ -98,118 +65,146 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Export failed");
+        throw new Error("Export failed");
       }
 
-      // Get the blob and download it
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = window.document.createElement("a");
       a.href = url;
-
-      if (format === "latex") {
-        a.download = `${document.title || "document"}.tex`;
-      } else if (format === "markdown") {
-        a.download = `${document.title || "document"}.md`;
-      } else {
-        a.download = `${document.title || "document"}-overleaf.zip`;
-      }
-
-      window.document.body.appendChild(a);
+      a.download = `${document.title || "document"}.${format === "latex" ? "tex" : "md"}`;
       a.click();
-      window.document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Export failed");
     }
   };
 
-  const handleJumpToRegion = (regionId: string, pageNumber: number) => {
-    // Could implement page navigation and region highlighting here
-    console.log("Jump to region:", regionId, "on page:", pageNumber);
-  };
-
-  const handleDismissSuggestion = (id: string) => {
-    setSuggestions((prev) => prev.filter((s) => s.id !== id));
-  };
-
   const handleReset = () => {
     setAppState("upload");
-    setUploadResult(null);
     setDocument(null);
-    setSuggestions([]);
     setError(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   // Processing state
   if (appState === "processing") {
     return (
-      <main className="min-h-screen bg-white dark:bg-gray-950 flex items-center justify-center">
-        <div className="text-center">
+      <main className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
           <div className="w-16 h-16 mx-auto mb-6 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
             {processingStatus}
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            This may take 30-60 seconds per page
+          <p className="text-gray-600 dark:text-gray-400 text-sm">
+            Using AI to recognize text and math...
           </p>
+          {previewUrl && (
+            <img
+              src={previewUrl}
+              alt="Preview"
+              className="mt-6 max-w-full max-h-48 mx-auto rounded-lg shadow-lg"
+            />
+          )}
         </div>
       </main>
     );
   }
 
-  // Editing state
-  if (appState === "editing" && document) {
+  // Result state
+  if (appState === "result" && document) {
     return (
-      <main className="min-h-screen bg-white dark:bg-gray-950 flex flex-col">
-        {/* Header */}
-        <header className="border-b border-gray-200 dark:border-gray-800">
-          <div className="flex items-center justify-between px-6 py-4">
+      <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
+        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+          <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
             <button
               onClick={handleReset}
-              className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-sm"
             >
-              <svg
-                className="w-5 h-5 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                />
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-              Back
+              New Upload
             </button>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              type-it-up
-            </h1>
-            <div className="w-20" /> {/* Spacer for alignment */}
+            <h1 className="text-lg font-bold text-gray-900 dark:text-white">type-it-up</h1>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleExport("latex")}
+                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Export LaTeX
+              </button>
+              <button
+                onClick={() => handleExport("markdown")}
+                className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+              >
+                Export Markdown
+              </button>
+            </div>
           </div>
         </header>
 
-        {/* Main content */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Editor */}
-          <div className="flex-1">
-            <DocumentEditor
-              document={document}
-              onDocumentChange={setDocument}
-              onExport={handleExport}
-            />
-          </div>
+        <div className="max-w-5xl mx-auto p-4">
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            </div>
+          )}
 
-          {/* Suggestions sidebar */}
-          <div className="w-80 border-l border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 overflow-hidden">
-            <SuggestionsPanel
-              suggestions={suggestions}
-              onDismiss={handleDismissSuggestion}
-              onJumpToRegion={handleJumpToRegion}
-            />
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Original Image */}
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4">
+              <h3 className="font-medium text-gray-900 dark:text-white mb-3">Original</h3>
+              {previewUrl && (
+                <img src={previewUrl} alt="Original" className="w-full rounded border border-gray-200 dark:border-gray-700" />
+              )}
+            </div>
+
+            {/* Extracted Content */}
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4">
+              <h3 className="font-medium text-gray-900 dark:text-white mb-3">Extracted Content</h3>
+              <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                {document.pages[0]?.regions.map((region, idx) => (
+                  <div
+                    key={region.id}
+                    className={`p-3 rounded-lg ${
+                      region.type === "math"
+                        ? "bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800"
+                        : "bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span
+                        className={`text-xs px-1.5 py-0.5 rounded ${
+                          region.type === "math"
+                            ? "bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200"
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                        }`}
+                      >
+                        {region.type}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {Math.round(region.confidence * 100)}% confidence
+                      </span>
+                    </div>
+                    <div className={`text-sm ${region.type === "math" ? "font-mono" : ""}`}>
+                      {region.type === "math" ? (
+                        <code className="text-green-700 dark:text-green-300 break-all">
+                          {region.content.latex}
+                        </code>
+                      ) : (
+                        <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                          {region.content.text}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </main>
@@ -218,174 +213,71 @@ export default function Home() {
 
   // Upload state (default)
   return (
-    <main className="min-h-screen bg-white dark:bg-gray-950">
-      {/* Header */}
-      <header className="border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            type-it-up
-          </h1>
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">type-it-up</h1>
         </div>
       </header>
 
-      {/* Main content */}
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        {!uploadResult ? (
-          <>
-            {/* Hero */}
-            <div className="text-center mb-12">
-              <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-                Handwritten notes to LaTeX
-              </h2>
-              <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-                Transform photos and PDFs of handwritten lecture notes into clean,
-                professional LaTeX and Markdown that compiles without errors.
-              </p>
-            </div>
-
-            {/* Upload */}
-            <FileUpload
-              onUploadComplete={handleUploadComplete}
-              onError={(err) => setError(err)}
-            />
-
-            {/* Error display */}
-            {error && (
-              <div className="mt-4 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-              </div>
-            )}
-
-            {/* Features */}
-            <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="p-6 rounded-xl bg-gray-50 dark:bg-gray-900">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center mb-4">
-                  <svg
-                    className="w-5 h-5 text-blue-600 dark:text-blue-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                  Math Recognition
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Equations, integrals, and formulas converted to valid LaTeX
-                </p>
-              </div>
-
-              <div className="p-6 rounded-xl bg-gray-50 dark:bg-gray-900">
-                <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center mb-4">
-                  <svg
-                    className="w-5 h-5 text-green-600 dark:text-green-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                  Figure Extraction
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Diagrams and figures extracted and embedded in your document
-                </p>
-              </div>
-
-              <div className="p-6 rounded-xl bg-gray-50 dark:bg-gray-900">
-                <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900 flex items-center justify-center mb-4">
-                  <svg
-                    className="w-5 h-5 text-purple-600 dark:text-purple-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                  AI Suggestions
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Smart suggestions to improve clarity and catch errors
-                </p>
-              </div>
-            </div>
-          </>
-        ) : (
-          /* Upload complete - show result */
-          <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-              <svg
-                className="w-8 h-8 text-green-600 dark:text-green-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-            </div>
-
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-lg">
+          {/* Hero */}
+          <div className="text-center mb-8">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              Upload Complete
+              Handwritten Notes → LaTeX
             </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              {uploadResult.pages.length} page
-              {uploadResult.pages.length > 1 ? "s" : ""} uploaded successfully
+            <p className="text-gray-600 dark:text-gray-400">
+              Upload a photo of your notes and get clean, compilable LaTeX
             </p>
+          </div>
 
-            <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 mb-6">
-              <p className="text-sm font-mono text-gray-600 dark:text-gray-400">
-                Project ID: {uploadResult.projectId}
+          {/* Upload area */}
+          <label className="block">
+            <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-8 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <p className="text-gray-900 dark:text-white font-medium mb-1">
+                Click to upload an image
+              </p>
+              <p className="text-sm text-gray-500">
+                JPG, PNG, or WEBP
               </p>
             </div>
+          </label>
 
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-              </div>
-            )}
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            </div>
+          )}
 
-            <div className="space-x-4">
-              <button
-                onClick={handleReset}
-                className="px-6 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                Upload More
-              </button>
-              <button
-                onClick={handleProcess}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Process Notes
-              </button>
+          {/* Features */}
+          <div className="mt-8 grid grid-cols-3 gap-4 text-center">
+            <div className="p-3">
+              <div className="text-2xl mb-1">📝</div>
+              <p className="text-xs text-gray-600 dark:text-gray-400">Text Recognition</p>
+            </div>
+            <div className="p-3">
+              <div className="text-2xl mb-1">📐</div>
+              <p className="text-xs text-gray-600 dark:text-gray-400">Math to LaTeX</p>
+            </div>
+            <div className="p-3">
+              <div className="text-2xl mb-1">✨</div>
+              <p className="text-xs text-gray-600 dark:text-gray-400">AI Powered</p>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </main>
   );
