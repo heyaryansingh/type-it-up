@@ -72,6 +72,7 @@ export interface DocumentJSON {
     createdAt: string;
     processedAt?: string;
     totalPages: number;
+    originalImage?: string;
   };
 }
 
@@ -93,4 +94,7 @@ export interface RegionJSON {
     latex?: string;
     imagePath?: string;
   };
+  // Diagram-specific metadata
+  diagramType?: "graph" | "venn" | "flowchart" | "geometry" | "circuit" | "unknown";
+  diagramDescription?: string;
 }
