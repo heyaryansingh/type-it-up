@@ -14,6 +14,8 @@ const REGION_COLORS = {
   math: "border-green-500 bg-green-500/10",
   figure: "border-purple-500 bg-purple-500/10",
   table: "border-orange-500 bg-orange-500/10",
+  heading: "border-indigo-500 bg-indigo-500/10",
+  list: "border-teal-500 bg-teal-500/10",
 };
 
 const REGION_LABELS = {
@@ -21,6 +23,8 @@ const REGION_LABELS = {
   math: "Math",
   figure: "Figure",
   table: "Table",
+  heading: "Heading",
+  list: "List",
 };
 
 export default function DocumentEditor({
@@ -179,50 +183,57 @@ export default function DocumentEditor({
           <div className="max-w-3xl mx-auto bg-white dark:bg-gray-950 shadow-lg rounded-lg p-8 relative min-h-[600px]">
             {/* Regions */}
             {showRegions &&
-              currentPageData?.regions.map((region) => (
-                <div
-                  key={region.id}
-                  onClick={() => handleRegionClick(region.id)}
-                  style={{
-                    position: "absolute",
-                    left: `${region.bbox.x}%`,
-                    top: `${region.bbox.y}%`,
-                    width: `${region.bbox.width}%`,
-                    height: `${region.bbox.height}%`,
-                  }}
-                  className={`
-                    border-2 rounded cursor-pointer transition-all
-                    ${REGION_COLORS[region.type]}
-                    ${
-                      selectedRegion === region.id
-                        ? "ring-2 ring-offset-2 ring-blue-500"
-                        : ""
-                    }
-                  `}
-                >
-                  {/* Region label */}
-                  <span className="absolute -top-6 left-0 text-xs font-medium px-1.5 py-0.5 rounded bg-gray-800 text-white">
-                    {REGION_LABELS[region.type]} ({Math.round(region.confidence * 100)}%)
-                  </span>
+              currentPageData?.regions
+                .filter((region) => region.bbox)
+                .map((region) => {
+                  const bbox = region.bbox;
+                  if (!bbox) return null;
 
-                  {/* Content preview */}
-                  <div className="p-2 text-sm overflow-hidden">
-                    {region.type === "math" ? (
-                      <code className="text-xs text-green-600 dark:text-green-400">
-                        {region.content.latex?.substring(0, 50)}...
-                      </code>
-                    ) : region.type === "figure" ? (
-                      <span className="text-purple-600 dark:text-purple-400">
-                        [Figure]
+                  return (
+                    <div
+                      key={region.id}
+                      onClick={() => handleRegionClick(region.id)}
+                      style={{
+                        position: "absolute",
+                        left: `${bbox.x}%`,
+                        top: `${bbox.y}%`,
+                        width: `${bbox.width}%`,
+                        height: `${bbox.height}%`,
+                      }}
+                      className={`
+                        border-2 rounded cursor-pointer transition-all
+                        ${REGION_COLORS[region.type]}
+                        ${
+                          selectedRegion === region.id
+                            ? "ring-2 ring-offset-2 ring-blue-500"
+                            : ""
+                        }
+                      `}
+                    >
+                      {/* Region label */}
+                      <span className="absolute -top-6 left-0 text-xs font-medium px-1.5 py-0.5 rounded bg-gray-800 text-white">
+                        {REGION_LABELS[region.type]} ({Math.round(region.confidence * 100)}%)
                       </span>
-                    ) : (
-                      <span className="text-gray-600 dark:text-gray-400">
-                        {region.content.text?.substring(0, 50)}...
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
+
+                      {/* Content preview */}
+                      <div className="p-2 text-sm overflow-hidden">
+                        {region.type === "math" ? (
+                          <code className="text-xs text-green-600 dark:text-green-400">
+                            {region.content.latex?.substring(0, 50)}...
+                          </code>
+                        ) : region.type === "figure" ? (
+                          <span className="text-purple-600 dark:text-purple-400">
+                            [Figure]
+                          </span>
+                        ) : (
+                          <span className="text-gray-600 dark:text-gray-400">
+                            {region.content.text?.substring(0, 50)}...
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
 
             {/* Empty state */}
             {(!currentPageData?.regions ||
@@ -331,12 +342,18 @@ export default function DocumentEditor({
               <label className="block text-sm text-gray-600 dark:text-gray-400 mb-2">
                 Bounding Box
               </label>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>X: {selectedRegionData.bbox.x.toFixed(1)}%</div>
-                <div>Y: {selectedRegionData.bbox.y.toFixed(1)}%</div>
-                <div>W: {selectedRegionData.bbox.width.toFixed(1)}%</div>
-                <div>H: {selectedRegionData.bbox.height.toFixed(1)}%</div>
-              </div>
+              {selectedRegionData.bbox ? (
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>X: {selectedRegionData.bbox.x.toFixed(1)}%</div>
+                  <div>Y: {selectedRegionData.bbox.y.toFixed(1)}%</div>
+                  <div>W: {selectedRegionData.bbox.width.toFixed(1)}%</div>
+                  <div>H: {selectedRegionData.bbox.height.toFixed(1)}%</div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  No bounding box data available for this region.
+                </p>
+              )}
             </div>
           </div>
         )}
