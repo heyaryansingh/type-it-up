@@ -27,6 +27,9 @@ export function renderToMarkdown(
 
   const lines: string[] = [];
 
+  // Render pages
+  if (!document.pages) return lines.join("\n");
+
   // YAML frontmatter
   if (includeYamlFrontmatter) {
     lines.push("---");
@@ -108,7 +111,7 @@ function renderMathRegion(
   region: RegionJSON,
   delimiters: "dollar" | "brackets"
 ): string {
-  const latex = region.content.latex || "";
+  const latex = String(region.content.latex || "");
 
   if (delimiters === "dollar") {
     return `$$\n${latex.trim()}\n$$\n`;

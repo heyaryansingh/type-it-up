@@ -27,8 +27,8 @@ export interface Page {
 export interface Region {
   id: string;
   pageId: string;
-  type: "text" | "math" | "figure" | "table";
-  bbox: BoundingBox;
+  type: "text" | "math" | "figure" | "table" | "heading" | "list";
+  bbox?: BoundingBox;
   confidence: number;
   content?: string; // OCR result for text/math, path for figure
   latex?: string; // For math regions
@@ -85,16 +85,26 @@ export interface PageJSON {
 
 export interface RegionJSON {
   id: string;
-  type: "text" | "math" | "figure" | "table";
-  bbox: BoundingBox;
+  type: "text" | "math" | "figure" | "table" | "heading" | "list";
+  bbox?: BoundingBox;
   confidence: number;
   readingOrder: number;
   content: {
     text?: string;
     latex?: string;
     imagePath?: string;
+    snapshot?: string; // Base64 data for cropped regions
   };
-  // Diagram-specific metadata
+  // Layout & Style metadata
+  style?: {
+    color?: string; // Hex color
+    backgroundColor?: string; // Highlight hex
+    fontWeight?: "normal" | "bold";
+    fontSize?: number; // Normalized size
+    italic?: boolean;
+    underline?: boolean;
+  };
   diagramType?: "graph" | "venn" | "flowchart" | "geometry" | "circuit" | "unknown";
   diagramDescription?: string;
+  isTikZ?: boolean;
 }

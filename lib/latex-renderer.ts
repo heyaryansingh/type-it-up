@@ -1,5 +1,6 @@
 /**
  * LaTeX Renderer - Converts canonical JSON to compilable LaTeX
+ * Supports standard math, physics/quantum mechanics, and engineering notation
  */
 
 import type { DocumentJSON, RegionJSON } from "./types";
@@ -11,12 +12,51 @@ export interface LaTeXOptions {
   author?: string;
   date?: string;
   includeTableOfContents?: boolean;
+  notationStyle?: "standard" | "physics" | "engineering";
+  includeImages?: boolean;
 }
 
-const DEFAULT_PACKAGES = [
+const STANDARD_PACKAGES = [
   "amsmath",
   "amssymb",
   "graphicx",
+  "hyperref",
+  "geometry",
+  "inputenc",
+  "fontenc",
+  "parskip",
+  "xcolor",
+  "pgfplots",
+  "booktabs",
+  "caption",
+  "enumitem",
+  "parskip",
+  "xcolor",
+  "pgfplots",
+  "booktabs",
+  "caption",
+  "enumitem",
+  "tcolorbox", // High-fidelity highlights
+  "adjustbox", // Precise image scaling
+];
+
+const PHYSICS_PACKAGES = [
+  "amsmath",
+  "amssymb",
+  "physics",
+  "braket",
+  "graphicx",
+  "hyperref",
+  "geometry",
+  "inputenc",
+];
+
+const ENGINEERING_PACKAGES = [
+  "amsmath",
+  "amssymb",
+  "graphicx",
+  "circuitikz",
+  "siunitx",
   "hyperref",
   "geometry",
   "inputenc",
@@ -54,12 +94,16 @@ export function renderToLatex(
 ): string {
   const {
     documentClass = "article",
-    packages = DEFAULT_PACKAGES,
     title,
     author,
     date,
     includeTableOfContents = false,
+    notationStyle = "standard",
+    includeImages = true,
   } = options;
+
+  // Select packages based on notation style
+  const packages = options.packages || getPackagesForStyle(notationStyle);
 
   const lines: string[] = [];
 
@@ -73,9 +117,31 @@ export function renderToLatex(
       lines.push("\\usepackage[margin=1in]{geometry}");
     } else if (pkg === "inputenc") {
       lines.push("\\usepackage[utf8]{inputenc}");
+    } else if (pkg === "fontenc") {
+      lines.push("\\usepackage[T1]{fontenc}");
+    } else if (pkg === "pgfplots") {
+      lines.push("\\usepackage{pgfplots}");
+      lines.push("\\pgfplotsset{compat=1.18}");
     } else {
       lines.push(`\\usepackage{${pkg}}`);
     }
+  }
+
+  lines.push("");
+  lines.push("% Publishable Quality Enhancement");
+  lines.push("\\usepackage{microtype} % Advanced typesetting");
+  lines.push("\\usepackage{setspace} % Line spacing control");
+  lines.push("\\onehalfspacing % Readability boost");
+  lines.push("\\usepackage{mathptmx} % Times font for academic look");
+  lines.push("\\setlength{\\parindent}{0pt}");
+  lines.push("\\setlength{\\parskip}{1.2em}");
+  lines.push("");
+
+  // Automatic TikZ library detection
+  const fullContent = document.pages.flatMap(p => p.regions).map(r => r.content.text || r.content.latex || "").join(" ");
+  if (fullContent.includes("tikzpicture") || fullContent.includes("circuitikz")) {
+    const libraries = ["positioning", "shapes", "arrows.meta", "calc"];
+    lines.push(`\\usetikzlibrary{${libraries.join(", ")}}`);
   }
   lines.push("");
 
@@ -109,6 +175,8 @@ export function renderToLatex(
   }
 
   // Render pages
+  if (!document.pages) return lines.join("\n");
+
   for (let i = 0; i < document.pages.length; i++) {
     const page = document.pages[i];
 
@@ -124,7 +192,7 @@ export function renderToLatex(
     );
 
     for (const region of sortedRegions) {
-      lines.push(renderRegion(region));
+      lines.push(renderRegion(region, includeImages));
     }
   }
 
@@ -136,57 +204,103 @@ export function renderToLatex(
 }
 
 /**
+ * Get the appropriate LaTeX packages for a notation style
+ */
+function getPackagesForStyle(style: string): string[] {
+  switch (style) {
+    case "physics":
+      return PHYSICS_PACKAGES;
+    case "engineering":
+      return ENGINEERING_PACKAGES;
+    default:
+      return STANDARD_PACKAGES;
+  }
+}
+
+/**
  * Render a single region to LaTeX
  */
-function renderRegion(region: RegionJSON): string {
+function renderRegion(region: RegionJSON, includeImages: boolean): string {
+  let content = "";
   switch (region.type) {
+    case "heading":
+      content = renderHeadingRegion(region);
+      break;
     case "text":
-      return renderTextRegion(region);
+      content = renderTextRegion(region);
+      break;
+    case "list":
+      content = renderListRegion(region);
+      break;
     case "math":
-      return renderMathRegion(region);
+      content = renderMathRegion(region);
+      break;
     case "figure":
-      return renderFigureRegion(region);
+      content = renderFigureRegion(region, includeImages);
+      break;
     case "table":
-      return renderTableRegion(region);
+      content = renderTableRegion(region);
+      break;
     default:
-      return `% Unknown region type: ${region.type}`;
+      content = `% Unknown region type: ${region.type}\n`;
   }
+
+  return content;
+}
+
+function renderHeadingRegion(region: RegionJSON): string {
+  const text = region.content.text || "";
+  // If it's a main title, use section*; if it looks smaller, use subsection*
+  if (text.startsWith("##")) {
+    return `\\subsection*{${escapeLatex(text.replace(/^#+\s*/, ""))}}\n`;
+  }
+  return `\\section*{${escapeLatex(text.replace(/^#+\s*/, ""))}}\n`;
+}
+
+function renderListRegion(region: RegionJSON): string {
+  const text = region.content.text || "";
+  const lines = text.split("\n").map(l => l.trim()).filter(l => l !== "");
+  const listItems = lines.map(l => l.replace(/^[-*]|\d+\.\s*/, "").trim());
+
+  return `\\begin{itemize}[leftmargin=*, noitemsep]\n${listItems.map(item => `  \\item ${escapeLatex(item)}`).join("\n")}\n\\end{itemize}\n`;
 }
 
 function renderTextRegion(region: RegionJSON): string {
   const text = region.content.text || "";
+  const style = region.style;
 
-  // Check if it looks like a heading
-  if (text.length < 100 && !text.includes("\n")) {
-    // Could be a section title - check confidence
-    if (region.confidence > 0.9) {
-      return `\\section*{${escapeLatex(text.trim())}}`;
+  if (!text.trim()) return "";
+
+  // Formatting (Handle inline math preservation)
+  let latex = text
+    .split(/(\$[^$]+\$)/g)
+    .map(part => {
+      if (part.startsWith("$") && part.endsWith("$")) return part;
+      return escapeLatex(part);
+    })
+    .join("");
+
+  // Apply style wrappers
+  if (style) {
+    if (style.fontWeight === "bold") latex = `\\textbf{${latex}}`;
+    if (style.italic) latex = `\\textit{${latex}}`;
+    if (style.fontSize && style.fontSize > 1.2) {
+      latex = `{\\large ${latex}}`;
+    }
+    if (style.color && style.color.startsWith("#")) {
+      const hex = style.color.replace("#", "");
+      latex = `\\textcolor[HTML]{${hex}}{${latex}}`;
     }
   }
 
-  // Handle inline math within text
-  let processedText = text;
+  // Aggressive Variable Wrapping ($x$, $y$)
+  latex = latex.replace(/(^|\s)([xyznmabcv])(\s|$|[.,!?;:])/g, "$1$$$2$$$3");
 
-  // Convert $...$ inline math (don't escape the math content)
-  processedText = processedText.replace(
-    /\$([^$]+)\$/g,
-    (_, math) => `$${math}$`
-  );
-
-  // Escape non-math text
-  const parts = processedText.split(/(\$[^$]+\$)/g);
-  const escapedParts = parts.map((part) => {
-    if (part.startsWith("$") && part.endsWith("$")) {
-      return part; // Keep math as-is
-    }
-    return escapeLatex(part);
-  });
-
-  return escapedParts.join("") + "\n";
+  return latex + "\n\n";
 }
 
 function renderMathRegion(region: RegionJSON): string {
-  const latex = region.content.latex || "";
+  const latex = String(region.content.latex || "");
 
   // Block math
   if (latex.includes("\\begin{") || latex.includes("\\\\")) {
@@ -198,17 +312,37 @@ function renderMathRegion(region: RegionJSON): string {
   return `\\[\n${latex.trim()}\n\\]\n`;
 }
 
-function renderFigureRegion(region: RegionJSON): string {
-  const imagePath = region.content.imagePath || "figure.png";
-  const filename = imagePath.split("/").pop() || "figure";
+function renderFigureRegion(region: RegionJSON, includeImages: boolean): string {
+  const hasImage = !!region.content.imagePath;
+  const isTikZ = !!region.isTikZ;
+  const content = region.content.text || "";
+  const description = region.diagramDescription || "Figure";
 
-  return `\\begin{figure}[htbp]
-\\centering
-\\includegraphics[width=0.8\\textwidth]{figures/${filename}}
-\\caption{Figure}
-\\label{fig:${filename.replace(/\.[^.]+$/, "")}}
-\\end{figure}
-`;
+  // If it's valid TikZ code, render it directly
+  if (isTikZ && content.includes("\\begin{tikzpicture}")) {
+    return `\n% Diagram generated as TikZ\n\\begin{figure}[htbp]\n\\centering\n${content}\n\\caption{${escapeLatex(description)}}\n\\end{figure}\n`;
+  }
+
+  // Non-convertible diagram or figure with image — embed as image
+  if (hasImage && includeImages) {
+    const caption = (region.content.text || "").startsWith("[DIAGRAM:")
+      ? `${region.diagramType || "Diagram"}: ${region.diagramDescription || "Diagram"}`
+      : description.replace(/^\[.*?\]\n?/, "").split("\n")[0] || "Figure";
+
+    return `\n% Non-convertible diagram — embedded as snapshot
+\\begin{center}
+\\adjincludegraphics[max width=\\linewidth, max height=\\textheight]{snapshots/${region.id}.png}
+\\captionof{figure}{${escapeLatex(caption)}}
+\\end{center}\n`;
+  }
+
+  // Diagram description as comment if no image and no TikZ
+  if ((region.content.text || "").startsWith("[DIAGRAM:")) {
+    return `\n% Diagram (${region.diagramType || "unknown"}): ${description.replace(/^\[.*?\]\n?/, "").split("\n")[0]}\n`;
+  }
+
+  // Generic fallback if there's no TikZ and no image but somehow we are in figure region
+  return `\n% [Figure: ${escapeLatex(description)}]\n`;
 }
 
 function renderTableRegion(region: RegionJSON): string {

@@ -2,591 +2,525 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { DocumentJSON, RegionJSON } from "@/lib/types";
-import katex from "katex";
+import { renderToLatex } from "@/lib/latex-renderer";
+import { renderToMarkdown } from "@/lib/markdown-renderer";
+import { MathRenderer } from "@/components/math-renderer";
+import { parseLatexToReact } from "@/lib/latex-to-html";
 import "katex/dist/katex.min.css";
 
-// ============================================================================
+// ════════════════════════════════════════════════════════════════
 // Types
-// ============================================================================
-type ViewMode = "preview" | "latex" | "raw";
+// ════════════════════════════════════════════════════════════════
 
-// ============================================================================
-// Icons (inline SVGs for cleaner imports)
-// ============================================================================
+type ViewMode = "preview" | "latex" | "markdown" | "raw";
+type Theme = "light" | "dark" | "system";
+
+interface ProcessingSettings {
+  notationStyle: "standard" | "physics" | "engineering";
+  diagramHandling: "auto" | "keep-image" | "attempt-convert";
+  includeImages: boolean;
+  documentClass: "article" | "report" | "book";
+}
+
+const DEFAULT_SETTINGS: ProcessingSettings = {
+  notationStyle: "standard",
+  diagramHandling: "auto",
+  includeImages: true,
+  documentClass: "article",
+};
+
+// ════════════════════════════════════════════════════════════════
+// Minimalist Icons
+// ════════════════════════════════════════════════════════════════
+
 const Icons = {
   upload: (
     <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-    </svg>
-  ),
-  document: (
-    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m0-15l-4.5 4.5m4.5-4.5l4.5 4.5" />
     </svg>
   ),
   download: (
-    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
     </svg>
   ),
-  copy: (
-    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+  settings: (
+    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
     </svg>
   ),
-  check: (
-    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+  eye: (
+    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.43 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   ),
   close: (
-    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
     </svg>
   ),
-  spinner: (
-    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="animate-spin">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.364-6.364l-2.121 2.121M8.757 15.243l-2.121 2.121m12.728 0l-2.121-2.121M8.757 8.757L6.636 6.636" />
+  checked: (
+    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
     </svg>
   ),
-  image: (
-    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+  copy: (
+    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
     </svg>
   ),
+  moon: (
+    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+    </svg>
+  ),
+  sun: (
+    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m0 13.5V21m8.966-8.966h-2.25M4.284 12h-2.25m15.811-5.811l-1.59 1.59m-11.454 0l-1.59-1.59m15.811 11.454l-1.59-1.59m-11.454 0l-1.59 1.59M12 8.25a3.75 3.75 0 100 7.5 3.75 3.75 0 000-7.5z" />
+    </svg>
+  ),
+  layout: (
+    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z" />
+    </svg>
+  )
 };
 
-// ============================================================================
-// Components
-// ============================================================================
+// MathRenderer moved to @/components/math-renderer
 
-// Toast notification
-function Toast({ message, onClose }: { message: string; onClose: () => void }) {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 2500);
-    return () => clearTimeout(timer);
-  }, [onClose]);
+// ════════════════════════════════════════════════════════════════
+// Main Page Component
+// ════════════════════════════════════════════════════════════════
 
-  return (
-    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
-      <div className="flex items-center gap-2 px-4 py-2.5 bg-[var(--foreground)] text-[var(--background)] rounded-lg shadow-lg text-sm font-medium">
-        <span className="text-[var(--success)]">{Icons.check}</span>
-        {message}
-      </div>
-    </div>
-  );
-}
-
-// LaTeX renderer using KaTeX
-function MathRenderer({ latex, block = false }: { latex: string; block?: boolean }) {
-  const ref = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    if (ref.current && latex) {
-      try {
-        katex.render(latex, ref.current, {
-          throwOnError: false,
-          displayMode: block,
-          trust: true,
-        });
-      } catch {
-        if (ref.current) ref.current.textContent = latex;
-      }
-    }
-  }, [latex, block]);
-
-  return <span ref={ref} />;
-}
-
-// Upload zone component
-function UploadZone({
-  onFile,
-  isProcessing,
-}: {
-  onFile: (file: File) => void;
-  isProcessing: boolean;
-}) {
-  const [isDragging, setIsDragging] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleFile = (file: File | null | undefined) => {
-    if (file && file.type.startsWith("image/")) {
-      onFile(file);
-    }
-  };
-
-  return (
-    <div
-      onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-      onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
-      onDrop={(e) => {
-        e.preventDefault();
-        setIsDragging(false);
-        handleFile(e.dataTransfer.files?.[0]);
-      }}
-      onClick={() => !isProcessing && inputRef.current?.click()}
-      className={`
-        relative cursor-pointer select-none
-        border-2 border-dashed rounded-xl p-8
-        flex flex-col items-center justify-center gap-4
-        transition-all duration-200
-        ${isDragging
-          ? "border-[var(--accent)] bg-[var(--accent-light)]"
-          : "border-[var(--border)] hover:border-[var(--muted)] bg-[var(--card)]"
-        }
-        ${isProcessing ? "pointer-events-none opacity-60" : ""}
-      `}
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => handleFile(e.target.files?.[0])}
-        disabled={isProcessing}
-      />
-
-      {isProcessing ? (
-        <>
-          <div className="text-[var(--accent)]">{Icons.spinner}</div>
-          <div className="text-center">
-            <p className="text-sm font-medium text-[var(--foreground)]">Processing...</p>
-            <p className="text-xs text-[var(--muted)] mt-1">Analyzing your document</p>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="w-12 h-12 rounded-full bg-[var(--accent-light)] flex items-center justify-center text-[var(--accent)]">
-            {Icons.upload}
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-medium text-[var(--foreground)]">
-              {isDragging ? "Drop to upload" : "Upload image"}
-            </p>
-            <p className="text-xs text-[var(--muted)] mt-1">
-              Drag & drop or click to browse
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
-            <kbd className="px-1.5 py-0.5 bg-[var(--card-hover)] border border-[var(--border)] rounded text-[10px] font-mono">
-              Ctrl+V
-            </kbd>
-            <span>to paste</span>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-// Document region renderer
-function DocumentRegion({ region, onCopy }: { region: RegionJSON; onCopy: (t: string) => void }) {
-  const isMath = region.type === "math";
-  const isFigure = region.type === "figure";
-  const hasImage = region.content.imagePath;
-  const text = region.content.text || "";
-  const latex = region.content.latex || "";
-
-  // Figure with image
-  if (isFigure && hasImage) {
-    const caption = text.split("\n")[0]?.replace(/^\[.*?\]\s*/, "") || "Figure";
-    return (
-      <div className="figure-region">
-        <img src={hasImage} alt={caption} />
-        <p className="figure-caption">{caption}</p>
-      </div>
-    );
-  }
-
-  // Math equation
-  if (isMath && latex) {
-    return (
-      <div
-        className="math-region group cursor-pointer hover:bg-[var(--accent-light)] transition-colors"
-        onClick={() => onCopy(latex)}
-        title="Click to copy LaTeX"
-      >
-        <MathRenderer latex={latex} block />
-      </div>
-    );
-  }
-
-  // Text content
-  if (text) {
-    // Heading
-    if (text.startsWith("# ")) {
-      return <h2>{text.slice(2)}</h2>;
-    }
-    // Regular paragraph
-    return <p>{text}</p>;
-  }
-
-  return null;
-}
-
-// Preview panel
-function PreviewPanel({
-  document,
-  onCopy,
-  previewRef,
-}: {
-  document: DocumentJSON;
-  onCopy: (t: string) => void;
-  previewRef: React.RefObject<HTMLDivElement | null>;
-}) {
-  return (
-    <div ref={previewRef} className="doc-content p-6 min-h-[300px] bg-white dark:bg-[var(--card)]">
-      {document.title && <h1>{document.title}</h1>}
-      {document.pages[0]?.regions.map((region) => (
-        <DocumentRegion key={region.id} region={region} onCopy={onCopy} />
-      ))}
-    </div>
-  );
-}
-
-// LaTeX code panel
-function LatexPanel({ latex, onCopy }: { latex: string; onCopy: () => void }) {
-  return (
-    <div className="relative">
-      <button
-        onClick={onCopy}
-        className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)] bg-[var(--card-hover)] rounded border border-[var(--border)] transition-colors"
-      >
-        {Icons.copy}
-        Copy
-      </button>
-      <pre className="p-4 pt-12 text-sm font-mono text-[var(--foreground)] bg-[var(--card-hover)] overflow-x-auto min-h-[300px] whitespace-pre-wrap leading-relaxed">
-        {latex}
-      </pre>
-    </div>
-  );
-}
-
-// Raw regions panel
-function RawPanel({
-  regions,
-  onCopy,
-}: {
-  regions: RegionJSON[];
-  onCopy: (t: string) => void;
-}) {
-  return (
-    <div className="p-4 space-y-3 min-h-[300px]">
-      {regions.map((region) => {
-        const content = region.type === "math" ? region.content.latex : region.content.text;
-        return (
-          <div
-            key={region.id}
-            className="p-3 bg-[var(--card-hover)] border border-[var(--border)] rounded-lg"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <span
-                className={`text-[10px] px-1.5 py-0.5 rounded font-medium uppercase tracking-wide ${
-                  region.type === "math"
-                    ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300"
-                    : region.type === "figure"
-                    ? "bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-                }`}
-              >
-                {region.type}
-              </span>
-              <span className="text-[10px] text-[var(--muted)]">
-                {Math.round(region.confidence * 100)}%
-              </span>
-              <button
-                onClick={() => onCopy(content || "")}
-                className="ml-auto text-[10px] text-[var(--accent)] hover:underline"
-              >
-                Copy
-              </button>
-            </div>
-            <code className="text-xs text-[var(--muted-foreground)] break-all block">
-              {content}
-            </code>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ============================================================================
-// Main Component
-// ============================================================================
 export default function Home() {
   const [document, setDocument] = useState<DocumentJSON | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
-  const [toast, setToast] = useState<string | null>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
+  const [theme, setTheme] = useState<Theme>("light");
+  const [editableLatex, setEditableLatex] = useState<string>("");
+  const [compiledLatex, setCompiledLatex] = useState<string>("");
+  const [splitRatio, setSplitRatio] = useState(0.45); // 45% editor, 55% preview
+  const [isResizing, setIsResizing] = useState(false);
+  const [autoSync, setAutoSync] = useState(false);
+  const [settings, setSettings] = useState<ProcessingSettings>(DEFAULT_SETTINGS);
+  const [activePanel, setActivePanel] = useState<ViewMode | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isSourceOpen, setIsSourceOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
 
-  // Process uploaded file
-  const processFile = useCallback(async (file: File) => {
+  const previewRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Theme Management ──
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.setAttribute("data-theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(theme === "light" ? "dark" : "light");
+
+  // ── File Processing ──
+  const processFile = async (file: File) => {
     setIsProcessing(true);
+    setError(null);
     setPreviewUrl(URL.createObjectURL(file));
 
+    const formData = new FormData();
+    formData.append("file", file);
+
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("projectId", crypto.randomUUID());
+      const res = await fetch("/api/process", {
+        method: "POST",
+        body: formData,
+      });
 
-      const res = await fetch("/api/process", { method: "POST", body: formData });
+      if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
+      const doc: DocumentJSON = data.document;
 
-      if (!data.success) throw new Error(data.error || "Processing failed");
+      // Auto-crop regions before setting document
+      if (doc.pages[0]) {
+        for (const region of doc.pages[0].regions) {
+          if (region.type === "figure" && !region.content.snapshot && region.bbox) {
+            try {
+              region.content.snapshot = await cropRegion(URL.createObjectURL(file), region.bbox);
+            } catch (e) {
+              console.error("Crop failed for region", region.id, e);
+            }
+          }
+        }
+      }
 
-      setDocument(data.document);
-      setToast("Document processed successfully");
-    } catch (err) {
-      setToast(err instanceof Error ? err.message : "Processing failed");
-      setPreviewUrl(null);
+      setDocument(doc);
+      const initialLatex = renderToLatex(doc, settings);
+      setEditableLatex(initialLatex);
+      setCompiledLatex(initialLatex);
+    } catch (err: any) {
+      setError(err.message || "Failed to process document");
     } finally {
       setIsProcessing(false);
     }
-  }, []);
+  };
 
-  // Clipboard paste handler
+  // ── Snapshot / Cropping Logic ──
+  const cropRegion = (imageUrl: string, bbox: { x: number; y: number; width: number; height: number }): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = window.document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject("Could not get canvas context");
+
+        const sx = (bbox.x / 1000) * img.width;
+        const sy = (bbox.y / 1000) * img.height;
+        const sw = (bbox.width / 1000) * img.width;
+        const sh = (bbox.height / 1000) * img.height;
+
+        canvas.width = sw;
+        canvas.height = sh;
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = reject;
+      img.src = imageUrl;
+    });
+  };
+
+  // ── Resizing Logic ──
+  const startResizing = useCallback(() => setIsResizing(true), []);
+  const stopResizing = useCallback(() => setIsResizing(false), []);
+  const resize = useCallback((e: MouseEvent) => {
+    if (isResizing) {
+      setSplitRatio(e.clientX / window.innerWidth);
+    }
+  }, [isResizing]);
+
   useEffect(() => {
-    const handler = (e: ClipboardEvent) => {
-      if (isProcessing) return;
+    window.addEventListener("mousemove", resize);
+    window.addEventListener("mouseup", stopResizing);
+    return () => {
+      window.removeEventListener("mousemove", resize);
+      window.removeEventListener("mouseup", stopResizing);
+    };
+  }, [resize, stopResizing]);
+
+  // ── Compilation Logic ──
+  const handleCompile = () => {
+    setCompiledLatex(editableLatex);
+  };
+
+  useEffect(() => {
+    if (autoSync) {
+      const timer = setTimeout(() => setCompiledLatex(editableLatex), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [editableLatex, autoSync]);
+
+  // ── Clipboard & Global Handle ──
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
       const items = e.clipboardData?.items;
       if (!items) return;
-      for (const item of items) {
-        if (item.type.startsWith("image/")) {
-          const file = item.getAsFile();
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith("image/") || items[i].type === "application/pdf") {
+          const file = items[i].getAsFile();
           if (file) {
             processFile(file);
-            break;
+            break; // Process only the first valid file
           }
         }
       }
     };
-    window.addEventListener("paste", handler);
-    return () => window.removeEventListener("paste", handler);
-  }, [isProcessing, processFile]);
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, []);
 
-  // Generate LaTeX
-  const generateLatex = useCallback(() => {
-    if (!document) return "";
-    let tex = "\\documentclass{article}\n\\usepackage{amsmath,amssymb,graphicx}\n\\begin{document}\n\n";
-    if (document.title) tex += `\\title{${document.title}}\n\\maketitle\n\n`;
-    for (const page of document.pages) {
-      for (const r of page.regions) {
-        if (r.type === "math" && r.content.latex) {
-          tex += `\\begin{equation}\n${r.content.latex}\n\\end{equation}\n\n`;
-        } else if (r.type === "figure") {
-          tex += `% Figure: ${r.content.text?.split("\\n")[0] || "Image"}\n% \\includegraphics{figure}\n\n`;
-        } else if (r.content.text) {
-          const t = r.content.text;
-          if (t.startsWith("# ")) tex += `\\section{${t.slice(2)}}\n\n`;
-          else tex += `${t}\n\n`;
-        }
-      }
-    }
-    tex += "\\end{document}";
-    return tex;
-  }, [document]);
-
-  // Copy to clipboard
-  const copy = async (text: string) => {
-    await navigator.clipboard.writeText(text);
-    setToast("Copied to clipboard");
-  };
-
-  // Export PDF
-  const exportPdf = async () => {
-    if (!previewRef.current || !document) return;
-    setToast("Generating PDF...");
-    try {
-      const html2canvas = (await import("html2canvas")).default;
-      const jsPDF = (await import("jspdf")).default;
-      const canvas = await html2canvas(previewRef.current, { scale: 2, useCORS: true });
-      const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [canvas.width, canvas.height] });
-      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, canvas.width, canvas.height);
-      pdf.save(`${document.title || "document"}.pdf`);
-      setToast("PDF downloaded");
-    } catch {
-      setToast("PDF export failed");
-    }
-  };
-
-  // Export LaTeX
-  const exportLatex = () => {
-    const tex = generateLatex();
-    const blob = new Blob([tex], { type: "text/x-latex" });
+  // ── Export Logic ──
+  const exportContent = (content: string, filename: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
     const a = window.document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${document?.title || "document"}.tex`;
+    a.href = url;
+    a.download = filename;
     a.click();
-    setToast("LaTeX file downloaded");
+    URL.revokeObjectURL(url);
   };
 
-  // Reset
-  const reset = () => {
-    setDocument(null);
-    setPreviewUrl(null);
-    setViewMode("preview");
+  const latexContent = document ? renderToLatex(document, settings) : "";
+  const markdownContent = document ? renderToMarkdown(document, { title: document.title }) : "";
+
+  // ── Render Regions ──
+  const renderRegions = (regions: RegionJSON[]) => {
+    return (
+      <div className="a4-sheet-container py-12 px-4 flex justify-center bg-[#f0f0f2]">
+        <div className="a4-sheet bg-white shadow-2xl p-16 min-h-[297mm] w-full max-w-[210mm] text-[#1a1a1a] flex flex-col gap-6">
+          {regions.sort((a, b) => a.readingOrder - b.readingOrder).map((region, idx) => {
+            const isMath = region.type === "math";
+            const isFigure = region.type === "figure";
+            const isHeading = region.type === "heading";
+            const isList = region.type === "list";
+            const text = String(region.content.text || "");
+            const latex = String(region.content.latex || "");
+            const style = region.style || {};
+
+            if (isFigure) {
+              return (
+                <div key={region.id} className="figure-block my-4 flex flex-col items-center gap-2">
+                  {region.content.snapshot && (
+                    <img src={region.content.snapshot} alt="Crop" className="max-w-full h-auto rounded border border-gray-100" />
+                  )}
+                  {region.diagramDescription && (
+                    <p className="text-xs text-center text-gray-500 italic max-w-sm">{region.diagramDescription}</p>
+                  )}
+                </div>
+              );
+            }
+
+            if (isMath && latex) {
+              return (
+                <div key={region.id} className="math-block py-6 flex justify-center bg-gray-50/30 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigator.clipboard.writeText(latex)}>
+                  <MathRenderer latex={latex} block />
+                </div>
+              );
+            }
+
+            if (isHeading) {
+              const Tag = text.startsWith("##") ? "h2" : "h1";
+              return (
+                <Tag key={region.id} className={`${Tag === "h1" ? "text-3xl font-serif font-bold tracking-tight border-b pb-4 mb-2" : "text-xl font-serif font-semibold mt-4"}`}>
+                  {text.replace(/^#+\s*/, "")}
+                </Tag>
+              );
+            }
+
+            if (isList) {
+              const items = text.split("\n").filter(i => i.trim()).map(i => i.replace(/^[-*]|\d+\.\s*/, "").trim());
+              return (
+                <ul key={region.id} className="list-disc pl-6 flex flex-col gap-2">
+                  {items.map((item, i) => (
+                    <li key={i} className="text-lg leading-relaxed">{item}</li>
+                  ))}
+                </ul>
+              );
+            }
+
+            if (text) {
+              return (
+                <p key={region.id} className="text-lg leading-relaxed font-serif text-justify" style={{ color: style.color }}>
+                  {text}
+                </p>
+              );
+            }
+
+            return null;
+          })}
+        </div>
+      </div>
+    );
   };
 
-  const regions = document?.pages[0]?.regions || [];
-  const textCount = regions.filter((r) => r.type === "text").length;
-  const mathCount = regions.filter((r) => r.type === "math").length;
-  const figureCount = regions.filter((r) => r.type === "figure").length;
+  // ════════════════════════════════════════════════════════════════
+  // Main UI
+  // ════════════════════════════════════════════════════════════════
 
   return (
-    <div className="min-h-screen bg-[var(--background)]">
-      {/* Toast */}
-      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+    <div
+      className="min-h-screen relative selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black"
+      onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+      onDragLeave={() => setIsDragging(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const file = e.dataTransfer.files[0];
+        if (file) processFile(file);
+      }}
+    >
 
-      {/* Header */}
-      <header className="sticky top-0 z-40 glass border-b border-[var(--border)]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-[var(--accent)]">{Icons.document}</span>
-            <span className="font-semibold text-[var(--foreground)]">type-it-up</span>
-          </div>
+      {/* ── Background Drop Zone Visual ── */}
+      <div className={`upload-area-bg ${isDragging ? "active" : ""}`} />
 
-          {document && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={reset}
-                className="px-3 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-              >
-                New
-              </button>
-              <button
-                onClick={exportLatex}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[var(--foreground)] bg-[var(--card)] border border-[var(--border)] rounded-lg hover:bg-[var(--card-hover)] transition-colors"
-              >
-                {Icons.download}
-                <span>.tex</span>
-              </button>
-              <button
-                onClick={exportPdf}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white bg-[var(--accent)] rounded-lg hover:bg-[var(--accent-hover)] transition-colors"
-              >
-                {Icons.download}
-                <span>PDF</span>
-              </button>
-            </div>
-          )}
+      {/* ── Header ── */}
+      <header className="fixed top-0 left-0 right-0 p-8 flex justify-between items-center z-50 pointer-events-none">
+        <div className="flex items-center gap-2 pointer-events-auto cursor-pointer" onClick={() => window.location.reload()}>
+          <span className="text-xl font-black uppercase tracking-tighter">Type It Up</span>
+          <span className="text-[10px] bg-[var(--fg)] text-[var(--bg)] px-1.5 py-0.5 font-bold rounded">ALPHA</span>
         </div>
+
+        <button onClick={toggleTheme} className="p-2 rounded-full glass-panel pointer-events-auto">
+          {theme === "light" ? Icons.moon : Icons.sun}
+        </button>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      <main className="relative z-10 w-full">
         {!document ? (
-          // Upload view
-          <div className="max-w-md mx-auto space-y-6">
-            <div className="text-center">
-              <h1 className="text-2xl font-semibold text-[var(--foreground)] mb-2">
-                Convert handwritten notes
-              </h1>
-              <p className="text-sm text-[var(--muted)]">
-                Upload an image to extract text, math, and diagrams
+          /* ── Landing Area ── */
+          <div className="full-screen-center animate-entrance">
+            <h1 className="text-[clamp(2rem,10vw,8rem)] font-black tracking-tighter leading-[0.9] text-center mb-12">
+              PAPER TO<br />COMPUTABLE.
+            </h1>
+
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="group cursor-pointer flex flex-col items-center"
+            >
+              <div className="w-24 h-24 rounded-full flex items-center justify-center border border-[var(--border)] group-hover:bg-[var(--fg)] group-hover:text-[var(--bg)] transition-all duration-500 mb-6">
+                {isProcessing ? <div className="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin" /> : Icons.upload}
+              </div>
+              <p className="text-sm font-bold uppercase tracking-widest opacity-40 group-hover:opacity-100 transition-opacity">
+                {isProcessing ? "Processing..." : "Drop file or Click to start"}
               </p>
             </div>
 
-            <UploadZone onFile={processFile} isProcessing={isProcessing} />
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0])}
+              className="hidden"
+              accept="image/*,application/pdf"
+            />
 
-            {previewUrl && isProcessing && (
-              <div className="p-4 bg-[var(--card)] border border-[var(--border)] rounded-xl">
-                <img src={previewUrl} alt="Preview" className="max-h-40 mx-auto rounded-lg" />
+            {error && (
+              <div className="mt-12 px-6 py-4 bg-red-50 dark:bg-red-950/20 text-red-600 rounded-lg text-sm font-medium animate-entrance">
+                {error}
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: "Text", desc: "Handwriting OCR" },
-                { label: "Math", desc: "LaTeX equations" },
-                { label: "Diagrams", desc: "Figures & graphs" },
-              ].map((f) => (
-                <div
-                  key={f.label}
-                  className="p-3 bg-[var(--card)] border border-[var(--border)] rounded-lg text-center"
-                >
-                  <p className="text-sm font-medium text-[var(--foreground)]">{f.label}</p>
-                  <p className="text-[10px] text-[var(--muted)] mt-0.5">{f.desc}</p>
-                </div>
-              ))}
+            <div className="fixed bottom-12 left-0 right-0 flex justify-center opacity-20 hover:opacity-100 transition-opacity">
+              <p className="text-xs font-bold uppercase tracking-widest gap-6 flex">
+                <span>LaTeX</span>
+                <span>Markdown</span>
+                <span>PDF</span>
+                <span>TikZ</span>
+              </p>
             </div>
           </div>
         ) : (
-          // Result view
-          <div className="grid lg:grid-cols-5 gap-6 animate-fade-in">
-            {/* Source image */}
-            <div className="lg:col-span-2">
-              <div className="sticky top-20">
-                <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl overflow-hidden">
-                  <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
-                    <span className="text-sm font-medium text-[var(--foreground)]">Source</span>
-                    <button
-                      onClick={reset}
-                      className="text-xs text-[var(--accent)] hover:underline"
-                    >
-                      Change
-                    </button>
+          /* ── Results Area (IDE) ── */
+          <div className="flex h-[calc(100vh-64px)] w-full pt-0 overflow-hidden bg-[var(--bg)]">
+
+            {/* ── Sidebar ── */}
+            <div className="w-12 sm:w-16 border-r border-[var(--border)] flex flex-col items-center py-4 gap-4 bg-[var(--bg-subtle)]">
+              <div className="p-2 bg-[var(--fg)] text-[var(--bg)] rounded-lg">
+                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+              </div>
+              <div className="flex-1" />
+              <button
+                onClick={() => setIsSourceOpen(!isSourceOpen)}
+                className={`p-3 rounded-full transition-all ${isSourceOpen ? "bg-[var(--fg)] text-[var(--bg)]" : "hover:bg-[var(--bg-inset)]"}`}
+              >
+                {Icons.eye}
+              </button>
+            </div>
+
+            {/* ── File Tree Mock ── */}
+            <div className="hidden lg:flex w-48 border-r border-[var(--border)] flex-col p-4 bg-[var(--bg-inset)]/30">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 opacity-40">Files</span>
+              <div className="flex items-center gap-2 text-xs font-bold p-2 bg-[var(--fg)]/5 rounded border border-[var(--border)]">
+                <span className="text-blue-500">📄</span> main.tex
+              </div>
+            </div>
+
+            {/* Left Pane: Editor */}
+            <div
+              style={{ width: `${splitRatio * 100}%` }}
+              className="h-full flex flex-col border-r border-[var(--border)] bg-[#1e1e1e] text-[#d4d4d4] transition-[width] duration-0"
+            >
+              <header className="px-6 py-2 border-b border-[#333] flex justify-between items-center bg-[#252526]">
+                <div className="flex items-center gap-4">
+                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Source Code</span>
+                  <div className="flex items-center gap-2 scale-75 origin-left">
+                    <input
+                      type="checkbox"
+                      checked={autoSync}
+                      onChange={() => setAutoSync(!autoSync)}
+                      className="accent-green-500"
+                    />
+                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">Auto-Compile</span>
                   </div>
-                  {previewUrl && (
-                    <div className="p-4">
-                      <img src={previewUrl} alt="Source" className="w-full rounded-lg" />
-                    </div>
-                  )}
                 </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCompile}
+                    className="flex items-center gap-2 px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded text-[10px] font-bold uppercase tracking-widest transition-colors shadow-lg"
+                  >
+                    <span>Recompile</span>
+                  </button>
+                  <div className="w-px h-6 bg-[#333] mx-1" />
+                  <button onClick={() => exportContent(editableLatex, "document.tex", "text/x-tex")} className="p-1 hover:bg-[#37373d] rounded">{Icons.download}</button>
+                </div>
+              </header>
+              <textarea
+                value={editableLatex}
+                onChange={(e) => setEditableLatex(e.target.value)}
+                className="flex-1 w-full p-8 font-mono text-[13px] lg:text-[14px] leading-relaxed bg-transparent border-none outline-none resize-none selection:bg-[#264f78]"
+                spellCheck={false}
+              />
+            </div>
 
-                {/* Stats */}
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  {[
-                    { n: textCount, label: "Text" },
-                    { n: mathCount, label: "Math" },
-                    { n: figureCount, label: "Figures" },
-                  ].map((s) => (
-                    <div
-                      key={s.label}
-                      className="p-2 bg-[var(--card)] border border-[var(--border)] rounded-lg text-center"
-                    >
-                      <p className="text-lg font-semibold text-[var(--foreground)]">{s.n}</p>
-                      <p className="text-[10px] text-[var(--muted)]">{s.label}</p>
-                    </div>
-                  ))}
+            {/* Draggable Divider */}
+            <div
+              className="w-1.5 h-full cursor-col-resize hover:bg-blue-500/30 active:bg-blue-500 transition-colors z-50 bg-transparent flex items-center justify-center group"
+              onMouseDown={startResizing}
+            >
+              <div className="w-0.5 h-10 bg-gray-400/20 group-hover:bg-blue-400 rounded-full" />
+            </div>
+
+            {/* Right Pane: Live Preview */}
+            <div className="flex-1 h-full bg-[#f0f0f2] overflow-auto flex flex-col items-center py-12 px-6 custom-scrollbar">
+              <div className="a4-sheet bg-white shadow-2xl p-16 min-h-[297mm] w-full max-w-[210mm] text-[#1a1a1a] flex flex-col gap-6 animate-entrance">
+                {parseLatexToReact(compiledLatex, document.pages[0].regions.reduce((acc: Record<string, string>, r: RegionJSON) => {
+                  if (r.content.snapshot) acc[r.id] = r.content.snapshot;
+                  return acc;
+                }, {} as Record<string, string>))}
+              </div>
+
+              {/* PDF Export Button (Overlay) */}
+              <button
+                onClick={() => window.print()}
+                className="fixed bottom-12 right-12 w-14 h-14 bg-red-600 text-white rounded-full flex items-center justify-center shadow-heavy hover:scale-110 transition-transform z-[100]"
+                title="Download PDF"
+              >
+                {Icons.download}
+              </button>
+
+              {/* Status Bar */}
+              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[var(--bg)] border border-[var(--border)] px-4 py-1.5 rounded-full shadow-medium flex items-center gap-4 z-50">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Status: Succeeded</span>
                 </div>
+                <div className="w-px h-4 bg-[var(--border)]" />
+                <span className="text-[10px] font-bold uppercase tracking-widest opacity-40">Page 1 of 1</span>
               </div>
             </div>
 
-            {/* Output */}
-            <div className="lg:col-span-3">
-              <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl overflow-hidden">
-                {/* Tabs */}
-                <div className="flex border-b border-[var(--border)]">
-                  {(["preview", "latex", "raw"] as const).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => setViewMode(m)}
-                      className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                        viewMode === m
-                          ? "text-[var(--accent)] border-b-2 border-[var(--accent)] -mb-px"
-                          : "text-[var(--muted)] hover:text-[var(--foreground)]"
-                      }`}
-                    >
-                      {m.charAt(0).toUpperCase() + m.slice(1)}
-                    </button>
-                  ))}
+            {/* Source Modal */}
+            {isSourceOpen && previewUrl && (
+              <div className="fixed inset-0 z-[200] flex items-center justify-center p-12 bg-black/60 backdrop-blur-sm animate-fade-in shadow-heavy">
+                <div className="relative max-w-5xl w-full bg-white rounded-3xl p-4 shadow-heavy">
+                  <button onClick={() => setIsSourceOpen(false)} className="absolute -top-12 right-0 p-2 text-white hover:scale-110 transition-transform">{Icons.close}</button>
+                  <img src={previewUrl} className="w-full h-auto rounded-2xl" alt="Source" />
                 </div>
-
-                {/* Content */}
-                {viewMode === "preview" && (
-                  <PreviewPanel document={document} onCopy={copy} previewRef={previewRef} />
-                )}
-                {viewMode === "latex" && (
-                  <LatexPanel latex={generateLatex()} onCopy={() => copy(generateLatex())} />
-                )}
-                {viewMode === "raw" && <RawPanel regions={regions} onCopy={copy} />}
               </div>
-            </div>
+            )}
           </div>
         )}
       </main>
+
+      {/* ── Global Styles Overrides for KaTeX light/dark ── */}
+      <style jsx global>{`
+        .katex { color: inherit !important; }
+        .katex-display { color: inherit !important; }
+      `}</style>
     </div>
   );
 }

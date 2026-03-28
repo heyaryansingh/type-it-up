@@ -1,240 +1,305 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-  --muted: #737373;
-  --muted-foreground: #525252;
-  --border: #e5e5e5;
-  --card: #ffffff;
-  --card-hover: #fafafa;
-  --accent: #0066ff;
-  --accent-hover: #0052cc;
-  --accent-light: #e6f0ff;
-  --success: #00a67d;
-  --success-light: #e6f7f3;
-  --error: #dc2626;
-  --error-light: #fef2f2;
-  --warning: #f59e0b;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
-  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -1px rgba(0,0,0,0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #09090b;
-    --foreground: #fafafa;
-    --muted: #a1a1aa;
-    --muted-foreground: #71717a;
-    --border: #27272a;
-    --card: #18181b;
-    --card-hover: #1f1f23;
-    --accent: #3b82f6;
-    --accent-hover: #2563eb;
-    --accent-light: #1e3a5f;
-    --success: #10b981;
-    --success-light: #064e3b;
-    --error: #ef4444;
-    --error-light: #450a0a;
-    --warning: #f59e0b;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-    --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
-    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -1px rgba(0,0,0,0.3);
-    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.4), 0 4px 6px -2px rgba(0,0,0,0.3);
-  }
-}
+/* ═══════════════════════════════════════════════════════════════
+   Minimalist Design System
+   ═══════════════════════════════════════════════════════════════ */
 
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
-html {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+:root {
+  /* Ultra-Minimal Monochromatic Palette */
+  --bg: #ffffff;
+  --bg-subtle: #fafafa;
+  --bg-inset: #f5f5f7;
+  --fg: #000000;
+  --fg-muted: #666666;
+  --fg-ghost: #999999;
+
+  --border: #e0e0e0;
+  --border-subtle: #f0f0f0;
+  --accent: #000000;
+  --accent-soft: rgba(0, 0, 0, 0.03);
+
+  --radius: 0px;
+  /* Sharp modernist edges or very subtle? Let's go with slightly soft for premium feel */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 24px;
+
+  /* Sophisticated Soft Shadows */
+  --shadow-soft: 0 4px 24px rgba(0, 0, 0, 0.04);
+  --shadow-medium: 0 12px 48px rgba(0, 0, 0, 0.08);
+  --shadow-heavy: 0 24px 80px rgba(0, 0, 0, 0.12);
+
+  /* Font Stacks */
+  --font-serif: "Charter", "Bitstream Charter", "Sitka Text", "Cambria", serif;
+  --font-mono: "ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", monospace;
 }
 
+[data-theme="dark"] {
+  --bg: #000000;
+  --bg-subtle: #0a0a0a;
+  --bg-inset: #111111;
+  --fg: #ffffff;
+  --fg-muted: #888888;
+  --fg-ghost: #444444;
+
+  --border: #222222;
+  --border-subtle: #111111;
+  --accent: #ffffff;
+  --accent-soft: rgba(255, 255, 255, 0.05);
+
+  --shadow-soft: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-medium: 0 12px 48px rgba(0, 0, 0, 0.6);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Base Styles
+   ═══════════════════════════════════════════════════════════════ */
+
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  line-height: 1.5;
-  min-height: 100vh;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  transition: background-color var(--duration-base) var(--ease), color var(--duration-base) var(--ease);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
-/* Typography */
-h1, h2, h3, h4, h5, h6 {
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: -0.025em;
+.overflow-auto {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
-code, pre, kbd {
-  font-family: 'SF Mono', SFMono-Regular, ui-monospace, Menlo, Monaco, 'Cascadia Mono', 'Segoe UI Mono', 'Roboto Mono', monospace;
-}
-
-/* Scrollbar */
-::-webkit-scrollbar {
+.custom-scrollbar::-webkit-scrollbar {
   width: 6px;
-  height: 6px;
 }
 
-::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
+.custom-scrollbar::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: 3px;
+  border-radius: 10px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--muted);
+.font-serif {
+  font-family: var(--font-serif);
 }
 
-/* Focus */
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+.a4-sheet {
+  line-height: 1.6;
 }
 
-/* Selection */
-::selection {
-  background: var(--accent);
-  color: white;
-}
-
-/* KaTeX */
-.katex-display {
-  margin: 0 !important;
-  padding: 0.75rem 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-}
-
-.katex {
-  font-size: 1.05em !important;
-}
-
-/* Document styles */
-.doc-content {
-  font-family: 'Georgia', 'Times New Roman', serif;
-  line-height: 1.75;
-  color: var(--foreground);
-}
-
-.doc-content h1 {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 1.875rem;
-  font-weight: 700;
-  margin-bottom: 1.5rem;
-  color: var(--foreground);
-}
-
-.doc-content h2 {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 1.375rem;
-  font-weight: 600;
-  margin-top: 2rem;
-  margin-bottom: 0.75rem;
-  color: var(--foreground);
-}
-
-.doc-content p {
+.a4-sheet p {
   margin-bottom: 1rem;
 }
 
-.doc-content .math-region {
-  margin: 1.25rem 0;
-  padding: 1rem 1.25rem;
-  background: var(--card-hover);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
+/* Print Overrides for Professional PDF */
+@media print {
+  body * {
+    visibility: hidden;
+  }
 
-.doc-content .figure-region {
-  margin: 1.5rem 0;
-  padding: 1rem;
-  background: var(--card-hover);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  text-align: center;
-}
+  .a4-sheet,
+  .a4-sheet * {
+    visibility: visible;
+  }
 
-.doc-content .figure-region img {
-  max-width: 100%;
-  max-height: 400px;
-  border-radius: 4px;
-}
-
-.doc-content .figure-caption {
-  margin-top: 0.75rem;
-  font-size: 0.875rem;
-  color: var(--muted);
-  font-style: italic;
-}
-
-/* Transitions */
-.transition-colors {
-  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
-}
-
-.transition-transform {
-  transition: transform 0.15s ease;
-}
-
-.transition-all {
-  transition: all 0.2s ease;
-}
-
-/* Animations */
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slide-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.animate-fade-in {
-  animation: fade-in 0.2s ease-out;
-}
-
-.animate-slide-up {
-  animation: slide-up 0.3s ease-out;
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-/* Utilities */
-.glass {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-@media (prefers-color-scheme: dark) {
-  .glass {
-    background: rgba(9, 9, 11, 0.85);
+  .a4-sheet {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0;
+    padding: 1in;
+    box-shadow: none;
   }
 }
 
-/* Print */
+::selection {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Typography & Content
+   ═══════════════════════════════════════════════════════════════ */
+
+.doc-content {
+  line-height: 1.8;
+  letter-spacing: -0.01em;
+}
+
+.doc-content h1 {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  margin-bottom: 4rem;
+}
+
+.doc-content p {
+  font-size: 1.125rem;
+  margin-bottom: 2rem;
+  opacity: 0.9;
+}
+
+.katex-display {
+  margin: 3rem 0 !important;
+  padding: 1rem 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Layout Components
+   ═══════════════════════════════════════════════════════════════ */
+
+.floating-bar {
+  position: fixed;
+  bottom: 3rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 0.75rem;
+  border-radius: 9999px;
+  display: flex;
+  gap: 0.5rem;
+  box-shadow: var(--shadow-medium);
+  z-index: 100;
+}
+
+.full-screen-center {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Animations
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes fade-in-blur {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+.animate-entrance {
+  animation: fade-in-blur var(--duration-slow) var(--ease) both;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Custom Utilities
+   ═══════════════════════════════════════════════════════════════ */
+
+.glass-panel {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
+  transition: all var(--duration-base) var(--ease);
+}
+
+.glass-panel:hover {
+  box-shadow: var(--shadow-medium);
+  border-color: var(--fg-ghost);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   A4 Digital Sheet & Precision Layout
+   ═══════════════════════════════════════════════════════════════ */
+
+.a4-sheet-container {
+  perspective: 2000px;
+  padding: 4rem 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* ── High-Fidelity PDF Print Export ── */
 @media print {
-  .no-print { display: none !important; }
-  body { background: white; }
-  .doc-content { color: black; }
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .a4-sheet-container,
+  .a4-sheet,
+  .a4-sheet * {
+    visibility: visible !important;
+  }
+
+  .a4-sheet-container {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    transform: none !important;
+    display: block !important;
+  }
+
+  .a4-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+  }
+
+  /* Hide UI elements in print */
+  .floating-bar,
+  header,
+  .fixed {
+    display: none !important;
+  }
+}
+
+[data-theme="dark"] .a4-sheet {
+  background: #ffffff;
+  /* Page stays white for PDF accuracy */
+  color: #1a1a1a;
+}
+
+.region-box {
+  position: absolute;
+  transition: all 0.3s var(--ease);
+}
+
+.highlight-box {
+  position: absolute;
+  z-index: -1;
+  opacity: 0.3;
+  border-radius: 2px;
+}
+
+.upload-area-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  transition: background var(--duration-base) var(--ease);
+}
+
+.upload-area-bg.active {
+  background: var(--bg-inset);
 }
