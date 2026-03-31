@@ -222,9 +222,18 @@ function parseVisionResponse(
 
 
 /**
- * Check if a diagram type can be converted to LaTeX
+ * Check if a diagram type can be converted to LaTeX/TikZ.
+ * Used during document export to determine if a hand-drawn diagram
+ * should be vectorized or kept as a raster image.
+ *
+ * @param diagramType - The type of diagram detected by vision model
+ * @returns true if the diagram type supports LaTeX/TikZ conversion
+ *
+ * @example
+ * canConvertDiagram("graph") // returns true
+ * canConvertDiagram("photo") // returns false
  */
-function canConvertDiagram(diagramType?: string): boolean {
+export function canConvertDiagram(diagramType?: string): boolean {
   const convertibleTypes = ["graph", "venn", "geometry", "flowchart"];
   return diagramType ? convertibleTypes.includes(diagramType) : false;
 }
