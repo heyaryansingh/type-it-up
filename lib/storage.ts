@@ -1,13 +1,27 @@
+/**
+ * @fileoverview Supabase Storage service for document management.
+ * Provides upload, download, signed URL generation, and file removal operations.
+ * @module lib/storage
+ */
+
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
-// Default bucket names - can be overridden via env vars
+/** Bucket for raw uploaded documents */
 export const RAW_BUCKET = process.env.SUPABASE_STORAGE_BUCKET_RAW || "type-it-up-raw";
+/** Bucket for extracted page images */
 export const PAGES_BUCKET = process.env.SUPABASE_STORAGE_BUCKET_PAGES || "type-it-up-pages";
+/** Bucket for extracted figures and images */
 export const FIGURES_BUCKET = process.env.SUPABASE_STORAGE_BUCKET_FIGURES || "type-it-up-figures";
+/** Bucket for exported documents */
 export const EXPORTS_BUCKET = process.env.SUPABASE_STORAGE_BUCKET_EXPORTS || "type-it-up-exports";
 
 let adminClient: ReturnType<typeof createSupabaseClient> | null = null;
 
+/**
+ * Gets or creates a Supabase admin client with service role access.
+ * @returns The Supabase admin client instance
+ * @throws {Error} When required environment variables are not set
+ */
 function getAdminClient() {
   if (!adminClient) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -25,6 +39,16 @@ function getAdminClient() {
   return adminClient;
 }
 
+/**
+ * Uploads a file to a Supabase storage bucket.
+ * @param params - Upload parameters
+ * @param params.bucket - Target bucket name
+ * @param params.path - File path within the bucket
+ * @param params.data - File content to upload
+ * @param params.contentType - MIME type of the file
+ * @param params.upsert - Whether to overwrite existing files (default: true)
+ * @throws {Error} When upload fails
+ */
 export async function uploadToBucket(params: {
   bucket: string;
   path: string;
@@ -45,6 +69,14 @@ export async function uploadToBucket(params: {
   }
 }
 
+/**
+ * Downloads a file from a Supabase storage bucket.
+ * @param params - Download parameters
+ * @param params.bucket - Source bucket name
+ * @param params.path - File path within the bucket
+ * @returns The file contents as a Buffer
+ * @throws {Error} When download fails
+ */
 export async function downloadFromBucket(params: {
   bucket: string;
   path: string;
@@ -62,6 +94,15 @@ export async function downloadFromBucket(params: {
   return Buffer.from(arrayBuffer);
 }
 
+/**
+ * Creates a time-limited signed URL for secure file access.
+ * @param params - URL generation parameters
+ * @param params.bucket - Source bucket name
+ * @param params.path - File path within the bucket
+ * @param params.expiresIn - URL expiration time in seconds (default: 3600)
+ * @returns The signed URL string
+ * @throws {Error} When URL creation fails
+ */
 export async function createSignedUrl(params: {
   bucket: string;
   path: string;
@@ -83,6 +124,13 @@ export async function createSignedUrl(params: {
   return data.signedUrl;
 }
 
+/**
+ * Removes one or more files from a Supabase storage bucket.
+ * @param params - Removal parameters
+ * @param params.bucket - Target bucket name
+ * @param params.paths - Array of file paths to remove
+ * @throws {Error} When removal fails
+ */
 export async function removeFromBucket(params: {
   bucket: string;
   paths: string[];
