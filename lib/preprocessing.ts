@@ -1,6 +1,23 @@
 /**
- * Image preprocessing for scanned documents
- * Handles: auto-crop, deskew, contrast enhancement
+ * @fileoverview Image preprocessing module for scanned document optimization
+ * @module lib/preprocessing
+ *
+ * Provides image processing utilities for document OCR preparation:
+ * - Auto-crop whitespace from scanned pages
+ * - Deskew rotated documents
+ * - Contrast enhancement for improved text recognition
+ * - Thumbnail generation for previews
+ * - Binarization for text extraction
+ *
+ * Uses Sharp (libvips) for high-performance image processing.
+ *
+ * @example
+ * ```typescript
+ * import { preprocessImage, generateThumbnail } from './preprocessing';
+ *
+ * const processed = await preprocessImage(imageBuffer, { autoCrop: true });
+ * const thumbnail = await generateThumbnail(imageBuffer, 200);
+ * ```
  */
 
 import sharp from "sharp";
@@ -29,8 +46,22 @@ const DEFAULT_OPTIONS: PreprocessingOptions = {
 };
 
 /**
- * Preprocess an image for OCR
- * Applies: auto-crop, contrast enhancement, resize if needed
+ * Preprocess an image for OCR with auto-crop, contrast enhancement, and resize
+ *
+ * @param {Buffer} input - Raw image buffer to process
+ * @param {PreprocessingOptions} [options={}] - Processing options
+ * @returns {Promise<PreprocessingResult>} Processed image with metadata
+ * @throws {Error} If image processing fails (corrupted image, unsupported format)
+ *
+ * @example
+ * ```typescript
+ * const result = await preprocessImage(imageBuffer, {
+ *   autoCrop: true,
+ *   enhanceContrast: true,
+ *   targetWidth: 1500
+ * });
+ * console.log(`Processed: ${result.width}x${result.height}`);
+ * ```
  */
 export async function preprocessImage(
   input: Buffer,
@@ -85,7 +116,18 @@ export async function preprocessImage(
 }
 
 /**
- * Generate a thumbnail for preview
+ * Generate a thumbnail image for preview display
+ *
+ * @param {Buffer} input - Raw image buffer
+ * @param {number} [maxWidth=400] - Maximum width in pixels (height auto-calculated)
+ * @returns {Promise<Buffer>} JPEG thumbnail buffer
+ * @throws {Error} If thumbnail generation fails
+ *
+ * @example
+ * ```typescript
+ * const thumbnail = await generateThumbnail(imageBuffer, 200);
+ * // Returns JPEG at max 200px wide
+ * ```
  */
 export async function generateThumbnail(
   input: Buffer,
@@ -102,14 +144,29 @@ export async function generateThumbnail(
 }
 
 /**
- * Convert image to grayscale (useful for some OCR engines)
+ * Convert image to grayscale for OCR engines that prefer single-channel input
+ *
+ * @param {Buffer} input - Raw image buffer (any color format)
+ * @returns {Promise<Buffer>} Grayscale image buffer
+ * @throws {Error} If conversion fails
  */
 export async function toGrayscale(input: Buffer): Promise<Buffer> {
   return sharp(input).grayscale().toBuffer();
 }
 
 /**
- * Binarize image (black and white) for text extraction
+ * Binarize image to black and white for clean text extraction
+ *
+ * @param {Buffer} input - Raw image buffer
+ * @param {number} [threshold=128] - Brightness threshold (0-255). Pixels below become black.
+ * @returns {Promise<Buffer>} Binary (1-bit) image buffer
+ * @throws {Error} If binarization fails
+ *
+ * @example
+ * ```typescript
+ * // Higher threshold = more black pixels
+ * const binary = await binarize(imageBuffer, 150);
+ * ```
  */
 export async function binarize(
   input: Buffer,
@@ -122,7 +179,17 @@ export async function binarize(
 }
 
 /**
- * Get image dimensions without loading full image
+ * Get image dimensions without loading the full image into memory
+ *
+ * @param {Buffer} input - Raw image buffer
+ * @returns {Promise<{width: number, height: number}>} Image dimensions in pixels
+ * @throws {Error} If metadata extraction fails
+ *
+ * @example
+ * ```typescript
+ * const { width, height } = await getImageDimensions(imageBuffer);
+ * console.log(`Image is ${width}x${height}px`);
+ * ```
  */
 export async function getImageDimensions(
   input: Buffer
