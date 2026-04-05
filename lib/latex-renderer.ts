@@ -1,6 +1,29 @@
 /**
- * LaTeX Renderer - Converts canonical JSON to compilable LaTeX
- * Supports standard math, physics/quantum mechanics, and engineering notation
+ * @fileoverview LaTeX Renderer - Converts canonical JSON to compilable LaTeX documents.
+ * @module lib/latex-renderer
+ *
+ * Supports multiple notation styles for different academic disciplines:
+ * - Standard: General academic documents with amsmath, graphicx
+ * - Physics: Includes physics, braket packages for quantum mechanics
+ * - Engineering: Includes circuitikz, siunitx for circuit diagrams and units
+ *
+ * Features:
+ * - Automatic package selection based on notation style
+ * - TikZ library detection for diagrams
+ * - Special character escaping
+ * - Environment validation
+ *
+ * @example
+ * ```typescript
+ * import { renderToLatex, validateLatex } from './latex-renderer';
+ *
+ * const latex = renderToLatex(document, {
+ *   title: 'Physics Notes',
+ *   notationStyle: 'physics',
+ * });
+ *
+ * const { valid, errors } = validateLatex(latex);
+ * ```
  */
 
 import type { DocumentJSON, RegionJSON } from "./types";
@@ -24,12 +47,6 @@ const STANDARD_PACKAGES = [
   "geometry",
   "inputenc",
   "fontenc",
-  "parskip",
-  "xcolor",
-  "pgfplots",
-  "booktabs",
-  "caption",
-  "enumitem",
   "parskip",
   "xcolor",
   "pgfplots",
@@ -75,7 +92,13 @@ const LATEX_SPECIAL_CHARS: Record<string, string> = {
 };
 
 /**
- * Escape special LaTeX characters in plain text
+ * Escape special LaTeX characters in plain text.
+ *
+ * Converts characters that have special meaning in LaTeX to their
+ * escaped equivalents (e.g., & → \&, % → \%).
+ *
+ * @param text - Plain text to escape
+ * @returns Text safe for inclusion in LaTeX documents
  */
 function escapeLatex(text: string): string {
   let result = text;
@@ -86,7 +109,27 @@ function escapeLatex(text: string): string {
 }
 
 /**
- * Convert a document to LaTeX
+ * Convert a canonical document to compilable LaTeX source.
+ *
+ * Generates a complete LaTeX document with:
+ * - Document class and package imports
+ * - Title page (if title provided)
+ * - Table of contents (optional)
+ * - All regions rendered in reading order
+ *
+ * @param document - The canonical document JSON to render
+ * @param options - LaTeX rendering configuration
+ * @returns Complete LaTeX source code
+ *
+ * @example
+ * ```typescript
+ * const latex = renderToLatex(doc, {
+ *   title: 'Quantum Mechanics Notes',
+ *   author: 'Student',
+ *   notationStyle: 'physics',
+ *   includeTableOfContents: true,
+ * });
+ * ```
  */
 export function renderToLatex(
   document: DocumentJSON,
@@ -204,7 +247,10 @@ export function renderToLatex(
 }
 
 /**
- * Get the appropriate LaTeX packages for a notation style
+ * Get the appropriate LaTeX packages for a notation style.
+ *
+ * @param style - Notation style: "standard", "physics", or "engineering"
+ * @returns Array of LaTeX package names
  */
 function getPackagesForStyle(style: string): string[] {
   switch (style) {
@@ -218,7 +264,11 @@ function getPackagesForStyle(style: string): string[] {
 }
 
 /**
- * Render a single region to LaTeX
+ * Render a single region to LaTeX.
+ *
+ * @param region - Document region (text, math, figure, etc.)
+ * @param includeImages - Whether to include image references
+ * @returns LaTeX content for the region
  */
 function renderRegion(region: RegionJSON, includeImages: boolean): string {
   let content = "";
@@ -360,7 +410,23 @@ ${escapeLatex(text)}
 }
 
 /**
- * Validate LaTeX for common issues
+ * Validate LaTeX source for common issues.
+ *
+ * Checks for:
+ * - Unmatched braces
+ * - Mismatched \begin/\end environments
+ * - Unpaired \left/\right delimiters
+ *
+ * @param latex - LaTeX source code to validate
+ * @returns Object with valid flag and array of error messages
+ *
+ * @example
+ * ```typescript
+ * const { valid, errors } = validateLatex(latex);
+ * if (!valid) {
+ *   console.error('LaTeX issues:', errors);
+ * }
+ * ```
  */
 export function validateLatex(latex: string): {
   valid: boolean;
