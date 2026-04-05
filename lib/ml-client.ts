@@ -1,12 +1,21 @@
 /**
- * ML Client for communicating with Hugging Face Spaces endpoint
- * Uses Marker for PDF/image to markdown conversion
+ * @fileoverview ML Client for communicating with Hugging Face Spaces endpoint.
+ * Uses Marker for PDF/image to markdown conversion.
+ * @module lib/ml-client
  */
 
 const HF_SPACE_URL = process.env.HF_SPACE_URL || process.env.NEXT_PUBLIC_HF_SPACE_URL;
 
 /**
- * Check if the ML service is configured
+ * Check if the ML service is configured with a valid URL.
+ *
+ * @returns {boolean} True if HF_SPACE_URL is set and not the placeholder value
+ * @example
+ * ```typescript
+ * if (isMLConfigured()) {
+ *   const health = await healthCheck();
+ * }
+ * ```
  */
 export function isMLConfigured(): boolean {
   return !!HF_SPACE_URL && HF_SPACE_URL !== "your_hf_space_url_here";
@@ -26,7 +35,16 @@ export interface ConvertResponse {
 }
 
 /**
- * Check if the ML service is healthy and responding
+ * Check if the ML service is healthy and responding.
+ *
+ * @returns {Promise<HealthCheckResponse>} The health status of the ML service
+ * @throws {Error} When HF_SPACE_URL environment variable is not set
+ * @throws {Error} When the health check request fails
+ * @example
+ * ```typescript
+ * const health = await healthCheck();
+ * console.log(`ML service status: ${health.status}, model: ${health.model}`);
+ * ```
  */
 export async function healthCheck(): Promise<HealthCheckResponse> {
   if (!HF_SPACE_URL) {
@@ -48,7 +66,20 @@ export async function healthCheck(): Promise<HealthCheckResponse> {
 }
 
 /**
- * Convert a document (PDF or image) to markdown using the ML service
+ * Convert a document (PDF or image) to markdown using the ML service.
+ *
+ * @param {File | Blob} file - The document file to convert (PDF or image)
+ * @param {string} filename - The name of the file being converted
+ * @returns {Promise<ConvertResponse>} The conversion result with markdown and optional images
+ * @throws {Error} When HF_SPACE_URL environment variable is not set
+ * @throws {Error} When the conversion request fails
+ * @example
+ * ```typescript
+ * const result = await convertDocument(pdfFile, 'document.pdf');
+ * if (result.markdown) {
+ *   console.log(result.markdown);
+ * }
+ * ```
  */
 export async function convertDocument(
   file: File | Blob,

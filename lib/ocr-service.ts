@@ -1,8 +1,9 @@
 /**
- * OCR Service - Calls the ML backend (Marker) for document processing
+ * @fileoverview OCR Service - Calls the ML backend (Marker) for document processing.
  *
  * Marker outputs markdown with embedded LaTeX and images.
  * This service parses that output into our canonical JSON format.
+ * @module lib/ocr-service
  */
 
 import { convertDocument, healthCheck, isMLConfigured } from "./ml-client";
@@ -21,7 +22,22 @@ export interface ProcessingResult {
 }
 
 /**
- * Process a document through the ML service
+ * Process a document through the ML service.
+ *
+ * If the ML service is not configured, returns a demo document for testing.
+ *
+ * @param {File | Blob} file - The document file to process (PDF or image)
+ * @param {string} filename - The name of the file
+ * @param {string} projectId - Unique identifier for the project
+ * @param {ProcessingOptions} options - Optional processing configuration
+ * @returns {Promise<ProcessingResult>} Processing result with document or error
+ * @example
+ * ```typescript
+ * const result = await processDocument(pdfFile, 'notes.pdf', 'proj-123');
+ * if (result.success && result.document) {
+ *   console.log(`Processed ${result.document.pages.length} pages`);
+ * }
+ * ```
  */
 export async function processDocument(
   file: File | Blob,
@@ -338,7 +354,16 @@ function estimateBbox(lineNumber: number, totalLines: number): BoundingBox {
 }
 
 /**
- * Check if the ML service is available
+ * Check if the ML service is available and responding.
+ *
+ * @returns {Promise<boolean>} True if the service is healthy, false otherwise
+ * @example
+ * ```typescript
+ * const isHealthy = await checkMLServiceHealth();
+ * if (!isHealthy) {
+ *   console.warn('ML service unavailable, using demo mode');
+ * }
+ * ```
  */
 export async function checkMLServiceHealth(): Promise<boolean> {
   try {
