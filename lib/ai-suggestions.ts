@@ -1,12 +1,22 @@
 /**
- * AI Suggestions Service
+ * @fileoverview AI Suggestions Service - Intelligent document analysis for OCR quality
+ * @module lib/ai-suggestions
  *
  * Analyzes documents for:
- * - Undefined symbols/variables
- * - Suspicious math (likely OCR errors)
- * - Logic gaps and missing steps
+ * - Undefined symbols/variables that may indicate missing context
+ * - Suspicious math patterns that suggest OCR errors
+ * - Logic gaps and missing steps in mathematical proofs
  *
- * Uses Groq API (free tier) with Llama for fast inference
+ * Uses Groq API (free tier) with Llama for fast inference, with
+ * heuristic fallbacks when API is unavailable.
+ *
+ * @example
+ * ```typescript
+ * import { analyzeDocument, AnalysisResult } from './ai-suggestions';
+ *
+ * const result = await analyzeDocument(document, process.env.GROQ_API_KEY);
+ * console.log(`Found ${result.summary.total} issues`);
+ * ```
  */
 
 import type { DocumentJSON, RegionJSON } from "./types";
