@@ -1,5 +1,16 @@
 /**
- * Markdown Renderer - Converts canonical JSON to Markdown with math blocks
+ * @fileoverview Markdown Renderer - Converts canonical JSON to Markdown with math blocks
+ * @module lib/markdown-renderer
+ *
+ * Supports multiple math delimiter formats and YAML frontmatter generation.
+ *
+ * @example
+ * ```typescript
+ * import { renderToMarkdown, MarkdownOptions } from './markdown-renderer';
+ *
+ * const options: MarkdownOptions = { title: 'My Document', mathDelimiters: 'dollar' };
+ * const markdown = renderToMarkdown(document, options);
+ * ```
  */
 
 import type { DocumentJSON, RegionJSON } from "./types";
@@ -12,7 +23,16 @@ export interface MarkdownOptions {
 }
 
 /**
- * Convert a document to Markdown
+ * Convert a document to Markdown format
+ *
+ * @param {DocumentJSON} document - The canonical document JSON to render
+ * @param {MarkdownOptions} [options={}] - Rendering configuration options
+ * @returns {string} The generated Markdown content
+ *
+ * @example
+ * ```typescript
+ * const md = renderToMarkdown(doc, { title: 'Notes', mathDelimiters: 'brackets' });
+ * ```
  */
 export function renderToMarkdown(
   document: DocumentJSON,
@@ -76,6 +96,11 @@ export function renderToMarkdown(
 
 /**
  * Render a single region to Markdown
+ *
+ * @param {RegionJSON} region - The region to render
+ * @param {"dollar" | "brackets"} mathDelimiters - Math delimiter style
+ * @param {string} imagePathPrefix - Prefix for image paths
+ * @returns {string} The rendered Markdown content for the region
  */
 function renderRegion(
   region: RegionJSON,
@@ -151,7 +176,17 @@ function renderTableRegion(region: RegionJSON): string {
 }
 
 /**
- * Convert inline math in text to markdown format
+ * Convert inline math delimiters in text to the specified format
+ *
+ * @param {string} text - The text containing inline math expressions
+ * @param {"dollar" | "brackets"} [delimiters="dollar"] - Target delimiter format
+ * @returns {string} Text with converted math delimiters
+ *
+ * @example
+ * ```typescript
+ * // Convert $x^2$ to \(x^2\)
+ * const converted = processInlineMath('The formula $x^2$ is...', 'brackets');
+ * ```
  */
 export function processInlineMath(
   text: string,

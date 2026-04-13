@@ -1,11 +1,20 @@
 /**
- * Export Service - Generate downloadable outputs
+ * @fileoverview Export Service - Generate downloadable outputs
+ * @module lib/export-service
  *
  * Creates:
  * - LaTeX source (.tex)
  * - Markdown (.md)
  * - Overleaf-ready ZIP (main.tex + figures/)
  * - PDF (via external compilation service)
+ *
+ * @example
+ * ```typescript
+ * import { exportDocument, ExportOptions } from './export-service';
+ *
+ * const options: ExportOptions = { format: 'overleaf', title: 'My Document' };
+ * const result = await exportDocument(document, figures, options);
+ * ```
  */
 
 import JSZip from "jszip";
@@ -30,6 +39,17 @@ export interface ExportResult {
 
 /**
  * Export a document to various formats
+ *
+ * @param {DocumentJSON} document - The document to export
+ * @param {Map<string, Blob>} figures - Map of image paths to Blob data
+ * @param {ExportOptions} options - Export configuration options
+ * @returns {Promise<ExportResult>} The export results containing generated files
+ *
+ * @example
+ * ```typescript
+ * const result = await exportDocument(doc, new Map(), { format: 'latex' });
+ * console.log(result.latex); // LaTeX source string
+ * ```
  */
 export async function exportDocument(
   document: DocumentJSON,
@@ -93,7 +113,12 @@ export async function exportDocument(
 }
 
 /**
- * Create Overleaf-ready ZIP package
+ * Create Overleaf-ready ZIP package with main.tex, figures, and build config
+ *
+ * @param {string} latex - The LaTeX source content
+ * @param {Map<string, Blob>} figures - Map of figure paths to Blob data
+ * @param {ExportOptions} options - Export options for metadata
+ * @returns {Promise<Blob>} The generated ZIP file as a Blob
  */
 async function createOverleafZip(
   latex: string,
@@ -150,7 +175,11 @@ pdflatex main.tex
 }
 
 /**
- * Generate LaTeX source file content
+ * Generate LaTeX source file content from a document
+ *
+ * @param {DocumentJSON} document - The document to convert
+ * @param {LaTeXOptions} [options={}] - LaTeX rendering options
+ * @returns {string} The generated LaTeX source
  */
 export function generateLatexSource(
   document: DocumentJSON,
@@ -160,7 +189,11 @@ export function generateLatexSource(
 }
 
 /**
- * Generate Markdown source file content
+ * Generate Markdown source file content from a document
+ *
+ * @param {DocumentJSON} document - The document to convert
+ * @param {MarkdownOptions} [options={}] - Markdown rendering options
+ * @returns {string} The generated Markdown source
  */
 export function generateMarkdownSource(
   document: DocumentJSON,
