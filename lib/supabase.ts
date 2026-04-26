@@ -3,7 +3,8 @@
  * @module lib/supabase
  */
 
-import { createServerClient, type SupabaseClient } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
+import type { SupabaseClient as BaseSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 /**
@@ -18,7 +19,7 @@ import { cookies } from "next/headers";
  * const { data } = await supabase.from('users').select();
  * ```
  */
-export async function createClient(): Promise<SupabaseClient> {
+export async function createClient(): Promise<BaseSupabaseClient> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

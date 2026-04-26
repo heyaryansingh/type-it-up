@@ -455,7 +455,8 @@ function getRegionText(region: RegionJSON): string {
     return region.content.latex || "";
   }
   if (region.type === "table") {
-    return JSON.stringify(region.content.cells || []);
+    // Tables are stored as text representation in the content
+    return region.content.text || "";
   }
   return "";
 }
