@@ -22,7 +22,6 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const files = formData.getAll("files") as File[];
-    const projectName = formData.get("projectName") as string | null;
 
     if (!files || files.length === 0) {
       return NextResponse.json(
@@ -93,9 +92,6 @@ export async function POST(request: NextRequest) {
 
         const pageId = uuidv4();
         const originalPath = `${projectId}/original/${pageId}.${imageType}`;
-
-        // Get original dimensions
-        const dimensions = await getImageDimensions(buffer);
 
         // Store original
         if (isStorageConfigured()) {

@@ -6,11 +6,11 @@ export async function GET() {
     const supabase = await createClient();
 
     // Test database connectivity with a simple query
-    const { data, error } = await supabase.rpc("now", {});
+    const { error } = await supabase.rpc("now", {});
 
     // If rpc doesn't work, try a raw SQL query
     if (error) {
-      const { data: timeData, error: timeError } = await supabase
+      const { error: timeError } = await supabase
         .from("_supabase_health_check")
         .select("*")
         .limit(1);
