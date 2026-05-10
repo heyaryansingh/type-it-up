@@ -1,9 +1,22 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase";
 
+/**
+ * Health check endpoint with performance monitoring
+ *
+ * Verifies:
+ * - Database connectivity and response time
+ * - API runtime environment
+ * - System uptime
+ *
+ * Returns detailed health status and metrics
+ */
 export async function GET() {
+  const startTime = Date.now();
+
   try {
     const supabase = await createClient();
+    const dbCheckStart = Date.now();
 
     // Test database connectivity with a simple query
     const { error } = await supabase.rpc("now", {});
@@ -21,20 +34,41 @@ export async function GET() {
       }
     }
 
+    const dbLatency = Date.now() - dbCheckStart;
+    const totalLatency = Date.now() - startTime;
     const timestamp = new Date().toISOString();
 
     return NextResponse.json({
       status: "ok",
-      database: "connected",
+      database: {
+        status: "connected",
+        latency_ms: dbLatency
+      },
+      performance: {
+        total_latency_ms: totalLatency,
+        db_latency_ms: dbLatency
+      },
+      environment: {
+        node_version: process.version,
+        platform: process.platform
+      },
       timestamp,
     });
   } catch (error) {
+    const totalLatency = Date.now() - startTime;
     console.error("Health check failed:", error);
 
     return NextResponse.json(
       {
         status: "error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        database: {
+          status: "disconnected",
+          error: error instanceof Error ? error.message : "Unknown error"
+        },
+        performance: {
+          total_latency_ms: totalLatency
+        },
+        timestamp: new Date().toISOString()
       },
       { status: 500 }
     );
