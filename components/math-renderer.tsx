@@ -15,7 +15,7 @@ export function MathRenderer({ latex, block = false }: { latex: string; block?: 
                     throwOnError: false,
                     output: "html",
                 });
-            } catch (err) {
+            } catch {
                 ref.current.textContent = latex;
             }
         }

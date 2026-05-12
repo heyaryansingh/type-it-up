@@ -208,7 +208,6 @@ export function formatAuthors(authors: Author[], style: CitationStyle): string {
  */
 export function formatCitation(citation: Citation, style: CitationStyle): string {
   const authors = formatAuthors(citation.authors, style);
-  const { title, year, journal, volume, issue, pages, publisher, location, doi, url } = citation;
 
   switch (style) {
     case 'apa':

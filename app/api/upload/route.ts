@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { preprocessImage, generateThumbnail, getImageDimensions } from "@/lib/preprocessing";
+import { preprocessImage, generateThumbnail } from "@/lib/preprocessing";
 import { getPDFInfo, isPDF, getImageType } from "@/lib/pdf-utils";
 import { uploadToBucket, RAW_BUCKET, PAGES_BUCKET, isStorageConfigured } from "@/lib/storage";
 import type { UploadResult, Page } from "@/lib/types";

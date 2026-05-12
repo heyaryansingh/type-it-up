@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { DocumentJSON, RegionJSON, PageJSON } from "@/lib/types";
+import type { DocumentJSON, RegionJSON } from "@/lib/types";
 
 interface DocumentEditorProps {
   document: DocumentJSON;
