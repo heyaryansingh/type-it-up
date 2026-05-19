@@ -401,3 +401,66 @@ function calculateContentScore(document: DocumentJSON): number {
   const avgContent = totalContent / totalRegions;
   return Math.min(100, avgContent);
 }
+
+/**
+ * Calculate document processing completion percentage
+ *
+ * @param document - The document to analyze
+ * @returns Completion percentage (0-100)
+ *
+ * @example
+ * ```typescript
+ * const progress = calculateProcessingProgress(document);
+ * console.log(`Document is ${progress}% complete`);
+ * ```
+ */
+export function calculateProcessingProgress(document: DocumentJSON): number {
+  if (document.pages.length === 0) return 0;
+
+  let processedRegions = 0;
+  let totalRegions = 0;
+
+  for (const page of document.pages) {
+    for (const region of page.regions) {
+      totalRegions++;
+
+      // Consider a region processed if it has content and decent confidence
+      const hasContent = !isEmptyRegion(region);
+      const hasGoodConfidence = region.confidence >= 0.7;
+
+      if (hasContent && hasGoodConfidence) {
+        processedRegions++;
+      }
+    }
+  }
+
+  return totalRegions > 0 ? Math.round((processedRegions / totalRegions) * 100) : 0;
+}
+
+/**
+ * Get regions grouped by type with counts
+ *
+ * @param document - The document to analyze
+ * @returns Object mapping region types to arrays of regions
+ *
+ * @example
+ * ```typescript
+ * const grouped = groupRegionsByType(document);
+ * console.log(`Found ${grouped.math.length} math expressions`);
+ * ```
+ */
+export function groupRegionsByType(document: DocumentJSON): Record<string, RegionJSON[]> {
+  const groups: Record<string, RegionJSON[]> = {};
+
+  for (const page of document.pages) {
+    for (const region of page.regions) {
+      const type = region.type;
+      if (!groups[type]) {
+        groups[type] = [];
+      }
+      groups[type].push(region);
+    }
+  }
+
+  return groups;
+}
