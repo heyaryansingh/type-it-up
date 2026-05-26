@@ -19,7 +19,7 @@
  * ```
  */
 
-import type { DocumentJSON, RegionJSON } from "./types";
+import type { DocumentJSON } from "./types";
 
 export interface Suggestion {
   id: string;

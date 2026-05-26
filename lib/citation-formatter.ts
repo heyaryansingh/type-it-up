@@ -226,7 +226,7 @@ export function formatCitation(citation: Citation, style: CitationStyle): string
 }
 
 function formatAPA(citation: Citation, authors: string): string {
-  const { title, year, journal, volume, issue, pages, publisher, location, doi, url, type } =
+  const { title, year, journal, volume, issue, pages, publisher, doi, url, type } =
     citation;
 
   let result = `${authors} (${year}). `;
