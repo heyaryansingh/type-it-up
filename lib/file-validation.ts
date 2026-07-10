@@ -240,8 +240,12 @@ async function validatePDF(buffer: Buffer): Promise<{ valid: boolean; metadata?:
       return { valid: false, error: `Unsupported PDF version: ${version}` };
     }
 
-    // Check for EOF marker
-    const tail = buffer.slice(-10).toString("ascii");
+    // Check for EOF marker. Scan a wider trailing window than just the
+    // last few bytes: many real-world PDFs have trailing whitespace,
+    // null padding, or an incremental-update xref/trailer after the
+    // final %%EOF, which would otherwise cause a false rejection.
+    const tailWindowSize = Math.min(buffer.length, 1024);
+    const tail = buffer.slice(-tailWindowSize).toString("ascii");
     if (!tail.includes("%%EOF")) {
       return { valid: false, error: "PDF missing EOF marker" };
     }
