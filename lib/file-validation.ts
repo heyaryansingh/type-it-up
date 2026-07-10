@@ -110,6 +110,45 @@ export function detectFileType(buffer: Buffer): string | null {
 }
 
 /**
+ * Reads width/height from a WebP buffer by parsing the VP8/VP8L/VP8X chunk.
+ * Supports lossy (VP8), lossless (VP8L), and extended (VP8X) formats.
+ */
+function readWebPDimensions(buffer: Buffer): { width: number; height: number } | null {
+  if (buffer.length < 30) return null;
+
+  const fourCC = buffer.toString("ascii", 12, 16);
+
+  if (fourCC === "VP8X") {
+    // Extended format: 24-bit width-1 and height-1, little-endian, at offset 24/27.
+    const width = (buffer[24] | (buffer[25] << 8) | (buffer[26] << 16)) + 1;
+    const height = (buffer[27] | (buffer[28] << 8) | (buffer[29] << 16)) + 1;
+    return { width, height };
+  }
+
+  if (fourCC === "VP8 ") {
+    // Lossy format: payload starts at offset 20, start code at +3, dims at +6/+8.
+    const startCode = buffer.slice(23, 26);
+    if (startCode[0] !== 0x9d || startCode[1] !== 0x01 || startCode[2] !== 0x2a) {
+      return null;
+    }
+    const width = buffer.readUInt16LE(26) & 0x3fff;
+    const height = buffer.readUInt16LE(28) & 0x3fff;
+    return { width, height };
+  }
+
+  if (fourCC === "VP8L") {
+    // Lossless format: signature byte 0x2F at offset 20, then packed 14-bit dims.
+    if (buffer[20] !== 0x2f) return null;
+    const bits = buffer.readUInt32LE(21);
+    const width = (bits & 0x3fff) + 1;
+    const height = ((bits >> 14) & 0x3fff) + 1;
+    return { width, height };
+  }
+
+  return null;
+}
+
+/**
  * Validates image dimensions without full decoding.
  * Fast dimension extraction from headers.
  */
@@ -144,10 +183,11 @@ async function validateImageDimensions(
         }
       }
     } else if (type === "image/webp") {
-      // WebP: VP8/VP8L headers vary, simplified check
-      // For production, use proper WebP library
-      width = 800; // Placeholder
-      height = 600;
+      const webpDims = readWebPDimensions(buffer);
+      if (webpDims) {
+        width = webpDims.width;
+        height = webpDims.height;
+      }
     }
 
     if (width === 0 || height === 0) {
