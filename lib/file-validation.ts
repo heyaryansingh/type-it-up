@@ -32,7 +32,7 @@ export interface ValidationOptions {
 
 const DEFAULT_OPTIONS: Required<ValidationOptions> = {
   maxFileSize: 50 * 1024 * 1024, // 50MB
-  allowedTypes: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
+  allowedTypes: ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"],
   requireMagicNumberCheck: true,
   maxDimensions: { width: 10000, height: 10000 },
   minDimensions: { width: 10, height: 10 },
@@ -46,6 +46,7 @@ const MAGIC_NUMBERS: Record<string, { signature: number[]; offset: number }> = {
   "image/jpeg": { signature: [0xff, 0xd8, 0xff], offset: 0 },
   "image/png": { signature: [0x89, 0x50, 0x4e, 0x47], offset: 0 },
   "image/webp": { signature: [0x52, 0x49, 0x46, 0x46], offset: 0 }, // RIFF
+  "image/gif": { signature: [0x47, 0x49, 0x46, 0x38], offset: 0 }, // GIF8
   "application/pdf": { signature: [0x25, 0x50, 0x44, 0x46], offset: 0 }, // %PDF
 };
 
@@ -187,6 +188,13 @@ async function validateImageDimensions(
       if (webpDims) {
         width = webpDims.width;
         height = webpDims.height;
+      }
+    } else if (type === "image/gif") {
+      // GIF: 6-byte "GIF87a"/"GIF89a" header, then width/height as
+      // little-endian uint16 at offsets 6 and 8 (logical screen descriptor).
+      if (buffer.length >= 10) {
+        width = buffer.readUInt16LE(6);
+        height = buffer.readUInt16LE(8);
       }
     }
 
