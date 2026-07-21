@@ -260,7 +260,7 @@ async function validatePDF(buffer: Buffer): Promise<{ valid: boolean; metadata?:
 
     // Count pages (simplified - count /Page objects)
     const content = buffer.toString("binary");
-    const pageMatches = content.match(/\/Type\s*\/Page[^s]/g);
+    const pageMatches = content.match(/\/Type\s*\/Page(?!s)/g);
     const pageCount = pageMatches ? pageMatches.length : 1;
 
     return { valid: true, metadata: { pageCount } };
