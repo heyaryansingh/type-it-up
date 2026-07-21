@@ -129,10 +129,23 @@ class RateLimiter {
     limit: number;
     strategy: string;
   } {
+    const strategy = this.config.strategy || 'token-bucket';
+    let remaining = this.tokens;
+
+    if (strategy === 'sliding-window') {
+      // Tokens are only meaningful for token-bucket; count live requests
+      // still inside the window instead
+      const now = Date.now();
+      const active = this.requestTimestamps.filter(
+        (timestamp) => now - timestamp < this.config.windowMs
+      ).length;
+      remaining = Math.max(0, this.config.maxRequests - active);
+    }
+
     return {
-      remaining: this.tokens,
+      remaining,
       limit: this.config.maxRequests,
-      strategy: this.config.strategy || 'token-bucket',
+      strategy,
     };
   }
 }
