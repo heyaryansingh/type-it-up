@@ -688,7 +688,7 @@ export function insertTOC(
   }
 
   // Replace marker pair (<!-- TOC --> ... <!-- /TOC -->)
-  const endMarker = marker.replace('-->', '/TOC -->').replace('>', '/>');
+  const endMarker = marker.replace('-->', '/TOC -->');
   const pairPattern = new RegExp(
     escapeRegex(marker) + '[\\s\\S]*?' + escapeRegex(endMarker),
     'g'
