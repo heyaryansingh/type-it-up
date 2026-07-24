@@ -177,10 +177,10 @@ export default function Home() {
         const ctx = canvas.getContext("2d");
         if (!ctx) return reject("Could not get canvas context");
 
-        const sx = (bbox.x / 1000) * img.width;
-        const sy = (bbox.y / 1000) * img.height;
-        const sw = (bbox.width / 1000) * img.width;
-        const sh = (bbox.height / 1000) * img.height;
+        const sx = (bbox.x / 100) * img.width;
+        const sy = (bbox.y / 100) * img.height;
+        const sw = (bbox.width / 100) * img.width;
+        const sh = (bbox.height / 100) * img.height;
 
         canvas.width = sw;
         canvas.height = sh;
@@ -477,7 +477,7 @@ export default function Home() {
             {/* Right Pane: Live Preview */}
             <div className="flex-1 h-full bg-[#f0f0f2] overflow-auto flex flex-col items-center py-12 px-6 custom-scrollbar">
               <div className="a4-sheet bg-white shadow-2xl p-16 min-h-[297mm] w-full max-w-[210mm] text-[#1a1a1a] flex flex-col gap-6 animate-entrance">
-                {parseLatexToReact(compiledLatex, document.pages[0].regions.reduce((acc: Record<string, string>, r: RegionJSON) => {
+                {parseLatexToReact(compiledLatex, (document.pages[0]?.regions ?? []).reduce((acc: Record<string, string>, r: RegionJSON) => {
                   if (r.content.snapshot) acc[r.id] = r.content.snapshot;
                   return acc;
                 }, {} as Record<string, string>))}
