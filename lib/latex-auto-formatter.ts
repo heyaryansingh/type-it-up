@@ -223,7 +223,7 @@ function formatEquations(latex: string): string {
   // Find align environments and align equals signs
   const alignRegex = /\\begin\{align\*?\}([\s\S]*?)\\end\{align\*?\}/g;
 
-  return latex.replace(alignRegex, (match, content) => {
+  return latex.replace(alignRegex, (match: string, content: string) => {
     const lines = content.split('\n').filter(line => line.trim());
 
     // Find position of first equals sign
