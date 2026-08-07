@@ -299,9 +299,10 @@ function countImages(document: DocumentJSON): number {
   return document.pages.reduce(
     (count, page) =>
       count +
-      page.regions.filter(
-        (region) => region.type === "image" || region.type === "diagram"
-      ).length,
+      // "figure" is the only image-bearing region type on a Region; the OCR
+      // layer already folds "diagram" into it. Matching on "image" or
+      // "diagram" here meant imageCount was always 0.
+      page.regions.filter((region) => region.type === "figure").length,
     0
   );
 }

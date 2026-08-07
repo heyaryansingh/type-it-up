@@ -116,7 +116,11 @@ function logError(
   requestId?: string
 ): void {
   const isApiError = error instanceof ApiError;
-  const severity = isApiError && error.isOperational ? 'warning' : 'error';
+  // 'warn', not 'warning' - console has no `warning` method, so the old
+  // value made this logger throw on exactly the operational errors it was
+  // meant to record.
+  const severity: 'warn' | 'error' =
+    isApiError && error.isOperational ? 'warn' : 'error';
 
   console[severity]('[API Error]', {
     type: isApiError ? error.type : 'UNKNOWN',
