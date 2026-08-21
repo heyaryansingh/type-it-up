@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { exportDocument } from "@/lib/export-service";
+import { sanitizeFilename } from "@/lib/input-validator";
 import type { DocumentJSON } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -28,6 +29,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // The title reaches us straight from the request body and is
+    // interpolated into Content-Disposition, so a quote or newline in it
+    // would break the header apart. Reuse the storage sanitizer, and fall
+    // back again when it strips the title down to nothing.
+    const safeTitle = sanitizeFilename(title || "document") || "document";
+
     // For now, use empty figures map (figures would come from storage)
     const figures = new Map<string, Blob>();
 
@@ -42,7 +49,7 @@ export async function POST(request: NextRequest) {
       return new NextResponse(result.latex, {
         headers: {
           "Content-Type": "text/plain; charset=utf-8",
-          "Content-Disposition": `attachment; filename="${title || "document"}.tex"`,
+          "Content-Disposition": `attachment; filename="${safeTitle}.tex"`,
         },
       });
     }
@@ -51,7 +58,7 @@ export async function POST(request: NextRequest) {
       return new NextResponse(result.markdown, {
         headers: {
           "Content-Type": "text/markdown; charset=utf-8",
-          "Content-Disposition": `attachment; filename="${title || "document"}.md"`,
+          "Content-Disposition": `attachment; filename="${safeTitle}.md"`,
         },
       });
     }
@@ -60,7 +67,7 @@ export async function POST(request: NextRequest) {
       return new NextResponse(result.overleafZip, {
         headers: {
           "Content-Type": "application/zip",
-          "Content-Disposition": `attachment; filename="${title || "document"}-overleaf.zip"`,
+          "Content-Disposition": `attachment; filename="${safeTitle}-overleaf.zip"`,
         },
       });
     }
