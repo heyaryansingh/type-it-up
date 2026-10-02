@@ -56,7 +56,12 @@ class RateLimiter {
         this.config.maxRequests,
         this.tokens + tokensToAdd
       );
-      this.lastRefill = now;
+      // Advance only by the time the added tokens account for, so the
+      // fractional remainder isn't discarded (under-refilling frequent callers)
+      this.lastRefill =
+        this.tokens >= this.config.maxRequests
+          ? now
+          : this.lastRefill + tokensToAdd / refillRate;
     }
 
     // Check if request can proceed
