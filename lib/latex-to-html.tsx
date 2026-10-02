@@ -36,7 +36,8 @@ export function parseLatexToReact(latex: string, images: Record<string, string> 
         }
 
         // ── Math Block detection (\[...\] or \begin{align}...) ──
-        if (line.includes("\\[") || line.includes("\\begin{equation}") || line.includes("\\begin{align}")) {
+        // Skip when already inside a block: "\\[2pt]" row spacing contains "\[" and would reset it
+        if (!inMathBlock && (line.includes("\\[") || line.includes("\\begin{equation}") || line.includes("\\begin{align}"))) {
             inMathBlock = true;
             currentMathBlock = line;
             if (line.includes("\\]") || line.includes("\\end{equation}") || line.includes("\\end{align}")) {
