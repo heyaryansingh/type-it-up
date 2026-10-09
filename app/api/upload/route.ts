@@ -88,7 +88,8 @@ export async function POST(request: NextRequest) {
         const pdfInfo = await getPDFInfo(buffer);
 
         // Store original PDF
-        const originalPath = `${projectId}/original/${file.name}`;
+        // file.name is client-controlled ("../x", "a/b#?.pdf"); never use it in a storage key.
+        const originalPath = `${projectId}/original/${uuidv4()}.pdf`;
         if (isStorageConfigured()) {
           await uploadToBucket({
             bucket: RAW_BUCKET,
