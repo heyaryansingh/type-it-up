@@ -318,11 +318,13 @@ export class LaTeXTableGenerator {
    * Escape LaTeX special characters
    */
   private escapeLatex(text: string): string {
-    return text
-      .replace(/\\/g, '\\textbackslash{}')
-      .replace(/[&%$#_{}]/g, '\\$&')
-      .replace(/\^/g, '\\textasciicircum{}')
-      .replace(/~/g, '\\textasciitilde{}');
+    const map: Record<string, string> = {
+      '\\': '\\textbackslash{}',
+      '^': '\\textasciicircum{}',
+      '~': '\\textasciitilde{}',
+    };
+    // Single pass so the braces in replacements aren't re-escaped
+    return text.replace(/[\\&%$#_{}^~]/g, c => map[c] ?? '\\' + c);
   }
 
   /**
