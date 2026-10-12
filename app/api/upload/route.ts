@@ -18,6 +18,10 @@ const MAX_TOTAL_SIZE = 100 * 1024 * 1024;
 // Max files per request, so a flood of tiny files cannot pin the event loop.
 const MAX_FILES = 50;
 
+// Max pages per request. A small PDF can declare tens of thousands of pages,
+// each of which becomes a page record and a downstream ML job.
+const MAX_PAGES = 500;
+
 // Allowed file types
 const ALLOWED_TYPES = [
   "image/jpeg",
@@ -86,6 +90,12 @@ export async function POST(request: NextRequest) {
       if (isPDF(buffer)) {
         // Handle PDF: get page count and process each page
         const pdfInfo = await getPDFInfo(buffer);
+        if (pageNumber - 1 + pdfInfo.pageCount > MAX_PAGES) {
+          return NextResponse.json(
+            { success: false, error: `Too many pages: upload exceeds the limit of ${MAX_PAGES} pages` },
+            { status: 400 }
+          );
+        }
 
         // Store original PDF
         // file.name is client-controlled ("../x", "a/b#?.pdf"); never use it in a storage key.
