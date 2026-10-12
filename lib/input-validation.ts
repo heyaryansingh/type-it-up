@@ -405,7 +405,7 @@ export function validateUrl(url: string): ValidationResult {
       parsed.hostname === "localhost" ||
       parsed.hostname === "127.0.0.1" ||
       parsed.hostname.startsWith("192.168.") ||
-      parsed.hostname.startsWith("10.") ||
+      /^(10|0|127)\.|^172\.(1[6-9]|2\d|3[01])\.|^169\.254\./.test(parsed.hostname) ||
       parsed.hostname === "[::1]"
     ) {
       errors.push("Local/private network URLs are not allowed");
