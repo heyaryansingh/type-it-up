@@ -310,7 +310,7 @@ function renderHeadingRegion(region: RegionJSON): string {
 function renderListRegion(region: RegionJSON): string {
   const text = region.content.text || "";
   const lines = text.split("\n").map(l => l.trim()).filter(l => l !== "");
-  const listItems = lines.map(l => l.replace(/^[-*]|\d+\.\s*/, "").trim());
+  const listItems = lines.map(l => l.replace(/^(?:[-*]|\d+\.)\s*/, "").trim());
 
   return `\\begin{itemize}[leftmargin=*, noitemsep]\n${listItems.map(item => `  \\item ${escapeLatex(item)}`).join("\n")}\n\\end{itemize}\n`;
 }
