@@ -110,6 +110,10 @@ function renderRegion(
   switch (region.type) {
     case "text":
       return renderTextRegion(region);
+    case "heading":
+      return `## ${(region.content.text || "").replace(/^#+\s*/, "").trim()}\n`;
+    case "list":
+      return (region.content.text || "").trim() + "\n";
     case "math":
       return renderMathRegion(region, mathDelimiters);
     case "figure":
