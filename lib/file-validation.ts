@@ -167,12 +167,17 @@ async function validateImageDimensions(
       width = buffer.readUInt32BE(16);
       height = buffer.readUInt32BE(20);
     } else if (type === "image/jpeg") {
-      // JPEG: scan for SOF marker (0xFFC0, 0xFFC2)
+      // JPEG: scan for any SOFn marker (0xFFC0-0xFFCF except DHT C4, JPG C8, DAC CC)
       let offset = 2;
       while (offset < buffer.length - 10) {
         if (buffer[offset] === 0xff) {
           const marker = buffer[offset + 1];
-          if (marker === 0xc0 || marker === 0xc2) {
+          if (marker === 0xff) {
+            // Fill byte before the real marker
+            offset++;
+            continue;
+          }
+          if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
             height = buffer.readUInt16BE(offset + 5);
             width = buffer.readUInt16BE(offset + 7);
             break;
