@@ -41,8 +41,10 @@ export function stripLatexCommands(text: string): string {
   result = result.replace(/(?<!\\)%.*$/gm, "");
 
   // Strip math mode: $$...$$, $...$, \[...\], \(...\).
-  result = result.replace(/\$\$[\s\S]*?\$\$/g, " ");
-  result = result.replace(/\$[^$]*\$/g, " ");
+  // An escaped \$ is a literal dollar sign (prices), not a math delimiter;
+  // treating it as one deleted all prose between two prices.
+  result = result.replace(/(?<!\\)\$\$[\s\S]*?(?<!\\)\$\$/g, " ");
+  result = result.replace(/(?<!\\)\$(?:\\\$|[^$])*?(?<!\\)\$/g, " ");
   result = result.replace(/\\\[[\s\S]*?\\\]/g, " ");
   result = result.replace(/\\\([\s\S]*?\\\)/g, " ");
 
@@ -98,10 +100,12 @@ function splitSentences(text: string): string[] {
 }
 
 function splitWords(text: string): string[] {
+  // Tokens with no letters ("2024", "-", "\$5") have no syllables; counting
+  // them as words dragged syllables-per-word down and inflated ease scores.
   return text
     .split(/\s+/)
     .map((w) => w.trim())
-    .filter((w) => w.length > 0);
+    .filter((w) => /[a-zA-Z]/.test(w));
 }
 
 /**
