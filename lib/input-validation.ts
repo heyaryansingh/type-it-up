@@ -401,12 +401,19 @@ export function validateUrl(url: string): ValidationResult {
     }
 
     // Block localhost/private IPs (basic SSRF protection)
+    const host = parsed.hostname.replace(/\.$/, "").toLowerCase();
+    const isIPv4 = /^\d+\.\d+\.\d+\.\d+$/.test(host);
+    // IPv6 literals: loopback, unspecified, ULA fc00::/7, link-local fe80::/10,
+    // and IPv4-mapped (::ffff:a.b.c.d, which URL normalizes to hex groups)
+    const isPrivateV6 =
+      host.startsWith("[") &&
+      /^\[(::1?|f[cd][0-9a-f]{2}:.*|fe[89ab][0-9a-f]:.*|::ffff:.*)\]$/.test(host);
     if (
-      parsed.hostname === "localhost" ||
-      parsed.hostname === "127.0.0.1" ||
-      parsed.hostname.startsWith("192.168.") ||
-      /^(10|0|127)\.|^172\.(1[6-9]|2\d|3[01])\.|^169\.254\./.test(parsed.hostname) ||
-      parsed.hostname === "[::1]"
+      host === "localhost" ||
+      host.endsWith(".localhost") ||
+      isPrivateV6 ||
+      (isIPv4 &&
+        /^(10|0|127)\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\.|^169\.254\./.test(host))
     ) {
       errors.push("Local/private network URLs are not allowed");
     }
