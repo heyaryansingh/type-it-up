@@ -1,6 +1,10 @@
 import React from "react";
 import { MathRenderer } from "../components/math-renderer";
 
+// Display-math environments KaTeX renders natively in display mode (incl. starred forms)
+const MATH_ENV_BEGIN = /\\begin\{(equation|align|gather|multline)\*?\}/;
+const MATH_ENV_END = /\\end\{(equation|align|gather|multline)\*?\}/;
+
 /**
  * Robust LaTeX to React parser for live preview.
  * 1. Isolates \begin{document} block
@@ -37,10 +41,10 @@ export function parseLatexToReact(latex: string, images: Record<string, string> 
 
         // ── Math Block detection (\[...\] or \begin{align}...) ──
         // Skip when already inside a block: "\\[2pt]" row spacing contains "\[" and would reset it
-        if (!inMathBlock && (line.includes("\\[") || line.includes("\\begin{equation}") || line.includes("\\begin{align}"))) {
+        if (!inMathBlock && (line.includes("\\[") || MATH_ENV_BEGIN.test(line))) {
             inMathBlock = true;
             currentMathBlock = line;
-            if (line.includes("\\]") || line.includes("\\end{equation}") || line.includes("\\end{align}")) {
+            if (line.includes("\\]") || MATH_ENV_END.test(line)) {
                 inMathBlock = false;
                 elements.push(renderMath(currentMathBlock, i));
             }
@@ -49,7 +53,7 @@ export function parseLatexToReact(latex: string, images: Record<string, string> 
 
         if (inMathBlock) {
             currentMathBlock += "\n" + line;
-            if (line.includes("\\]") || line.includes("\\end{equation}") || line.includes("\\end{align}")) {
+            if (line.includes("\\]") || MATH_ENV_END.test(line)) {
                 inMathBlock = false;
                 elements.push(renderMath(currentMathBlock, i));
             }
@@ -111,15 +115,13 @@ export function parseLatexToReact(latex: string, images: Record<string, string> 
  * Handle math block extraction and rendering
  */
 function renderMath(content: string, key: number) {
-    // Strip delimiters for KaTeX
-    const cleanMath = content
-        .replace("\\[", "")
-        .replace("\\]", "")
-        .replace("\\begin{equation}", "")
-        .replace("\\end{equation}", "")
-        .replace("\\begin{align}", "")
-        .replace("\\end{align}", "")
-        .trim();
+    // Strip only the outer \[ \] delimiters. Environments stay: KaTeX renders
+    // align/equation/gather natively, while a stripped align body leaves bare
+    // "&" column separators that fail to parse ("Expected 'EOF', got '&'").
+    const trimmed = content.trim();
+    const cleanMath = trimmed.startsWith("\\[") && trimmed.endsWith("\\]")
+        ? trimmed.slice(2, -2).trim()
+        : trimmed;
 
     return (
         <div key={key} className="math-block py-6 flex justify-center bg-gray-50/20 rounded-lg my-4 overflow-x-auto">
