@@ -215,9 +215,12 @@ export function validateLatex(latex: string): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
+  // Escaped delimiters (\{, \], \ ...) are literal and must not count toward balance
+  const bare = latex.replace(/\\(?:\\|[{}[\]()])/g, "");
+
   // Check for balanced delimiters
-  const openBraces = (latex.match(/\{/g) || []).length;
-  const closeBraces = (latex.match(/\}/g) || []).length;
+  const openBraces = (bare.match(/\{/g) || []).length;
+  const closeBraces = (bare.match(/\}/g) || []).length;
 
   if (openBraces !== closeBraces) {
     errors.push(
@@ -225,8 +228,8 @@ export function validateLatex(latex: string): ValidationResult {
     );
   }
 
-  const openBrackets = (latex.match(/\[/g) || []).length;
-  const closeBrackets = (latex.match(/\]/g) || []).length;
+  const openBrackets = (bare.match(/\[/g) || []).length;
+  const closeBrackets = (bare.match(/\]/g) || []).length;
 
   if (openBrackets !== closeBrackets) {
     errors.push(
@@ -234,8 +237,8 @@ export function validateLatex(latex: string): ValidationResult {
     );
   }
 
-  const openParens = (latex.match(/\(/g) || []).length;
-  const closeParens = (latex.match(/\)/g) || []).length;
+  const openParens = (bare.match(/\(/g) || []).length;
+  const closeParens = (bare.match(/\)/g) || []).length;
 
   if (openParens !== closeParens) {
     warnings.push(
