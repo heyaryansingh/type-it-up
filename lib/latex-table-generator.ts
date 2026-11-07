@@ -354,27 +354,75 @@ export class LaTeXTableGenerator {
 }
 
 /**
+ * Parse CSV per RFC 4180: quoted fields may contain commas, newlines and
+ * doubled quotes. Blank lines are skipped.
+ */
+export function parseCsv(csv: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+
+  const endRow = () => {
+    row.push(field);
+    if (row.length > 1 || row[0].trim() !== '') rows.push(row);
+    row = [];
+    field = '';
+  };
+
+  for (let i = 0; i < csv.length; i++) {
+    const ch = csv[i];
+    if (quoted) {
+      if (ch === '"' && csv[i + 1] === '"') {
+        field += '"';
+        i++;
+      } else if (ch === '"') {
+        quoted = false;
+      } else {
+        field += ch;
+      }
+    } else if (ch === '"' && field.trim() === '') {
+      quoted = true;
+      field = '';
+    } else if (ch === ',') {
+      row.push(field);
+      field = '';
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && csv[i + 1] === '\n') i++;
+      endRow();
+    } else {
+      field += ch;
+    }
+  }
+  if (field !== '' || row.length > 0) endRow();
+  return rows.map((r) => r.map((v) => v.trim()));
+}
+
+/**
  * Convert CSV string to LaTeX table
  */
 export function csvToLatex(
   csv: string,
   options: TableOptions = {}
 ): string {
-  const lines = csv.trim().split('\n');
-  const headers = lines[0].split(',').map(h => h.trim());
+  // Splitting on every comma broke quoted fields like "Smith, John" and
+  // shifted every later column.
+  const [headers = [], ...rows] = parseCsv(csv);
+  if (headers.length === 0) {
+    throw new Error('CSV has no header row');
+  }
+  const keys = headers.map((header) => header.toLowerCase().replace(/\s+/g, '_'));
 
   // Create columns
-  const columns: TableColumn[] = headers.map(header => ({
-    key: header.toLowerCase().replace(/\s+/g, '_'),
+  const columns: TableColumn[] = headers.map((header, i) => ({
+    key: keys[i],
     header: header,
   }));
 
   // Parse data rows
-  const data = lines.slice(1).map(line => {
-    const values = line.split(',').map(v => v.trim());
+  const data = rows.map((values) => {
     const row: any = {};
-    headers.forEach((header, i) => {
-      const key = header.toLowerCase().replace(/\s+/g, '_');
+    keys.forEach((key, i) => {
       row[key] = values[i];
     });
     return row;
@@ -465,37 +513,4 @@ export function createFinancialTable(
     fontSize: 'small',
     ...options,
   }).generate();
-}
-
-// Example usage
-if (require.main === module) {
-  // Example data
-  const data = [
-    { name: 'Alice', age: 25, score: 92.5, grade: 'A' },
-    { name: 'Bob', age: 23, score: 87.3, grade: 'B+' },
-    { name: 'Charlie', age: 24, score: 95.1, grade: 'A+' },
-  ];
-
-  const columns: TableColumn[] = [
-    { key: 'name', header: 'Name', align: 'l' },
-    { key: 'age', header: 'Age', format: 'number', decimals: 0 },
-    { key: 'score', header: 'Score', format: 'number', decimals: 1 },
-    { key: 'grade', header: 'Grade', align: 'c' },
-  ];
-
-  const options: TableOptions = {
-    caption: 'Student Performance Data',
-    label: 'tab:students',
-    booktabs: true,
-    alternateRowColors: true,
-  };
-
-  const generator = new LaTeXTableGenerator(columns, data, options);
-  console.log(generator.generate());
-
-  // Required packages
-  console.log('\n% Required packages:');
-  LaTeXTableGenerator.getRequiredPackages(options).forEach(pkg => {
-    console.log(`% \\usepackage{${pkg}}`);
-  });
 }
