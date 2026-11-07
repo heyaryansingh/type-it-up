@@ -29,6 +29,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (
+      (title !== undefined && typeof title !== "string") ||
+      (author !== undefined && typeof author !== "string")
+    ) {
+      return NextResponse.json(
+        { success: false, error: "title and author must be strings" },
+        { status: 400 }
+      );
+    }
+
     // The title reaches us straight from the request body and is
     // interpolated into Content-Disposition, so a quote or newline in it
     // would break the header apart. Reuse the storage sanitizer, and fall
