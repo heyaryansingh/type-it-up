@@ -151,8 +151,20 @@ function extractMarkdownHeadings(content: string): HeadingEntry[] {
   const setextH1Pattern = /^=+$/;
   const setextH2Pattern = /^-+$/;
 
+  let fence: string | null = null;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
+
+    // Skip fenced code blocks: '# comment' lines inside them are not headings
+    const fenceMatch = line.match(/^(`{3,}|~{3,})/);
+    if (fence) {
+      if (fenceMatch && fenceMatch[1][0] === fence[0] && fenceMatch[1].length >= fence.length) fence = null;
+      continue;
+    }
+    if (fenceMatch) {
+      fence = fenceMatch[1];
+      continue;
+    }
 
     // ATX style
     const atxMatch = line.match(atxPattern);
@@ -222,10 +234,11 @@ function extractLatexHeadings(content: string): HeadingEntry[] {
   };
 
   // Pattern: \section{Title} or \section*{Title}
-  const sectionPattern = /\\(chapter|section|subsection|subsubsection|paragraph|subparagraph)\*?\{([^}]+)\}/g;
+  const sectionPattern = /\\(chapter|section|subsection|subsubsection|paragraph|subparagraph)\*?\{((?:[^{}]|\{[^{}]*\})+)\}/g;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    // Drop LaTeX comments (unescaped %) so commented-out sections are ignored
+    const line = lines[i].replace(/(^|[^\\])%.*$/, '$1');
     let match;
 
     while ((match = sectionPattern.exec(line)) !== null) {
