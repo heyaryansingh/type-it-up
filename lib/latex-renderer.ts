@@ -101,11 +101,9 @@ const LATEX_SPECIAL_CHARS: Record<string, string> = {
  * @returns Text safe for inclusion in LaTeX documents
  */
 function escapeLatex(text: string): string {
-  let result = text;
-  for (const [char, escape] of Object.entries(LATEX_SPECIAL_CHARS)) {
-    result = result.split(char).join(escape);
-  }
-  return result;
+  // Single pass; backslash was previously left unescaped
+  return text.replace(/[\\&%$#_{}~^]/g, (c) =>
+    c === "\\" ? "\\textbackslash{}" : LATEX_SPECIAL_CHARS[c]);
 }
 
 /**
