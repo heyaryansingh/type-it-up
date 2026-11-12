@@ -45,7 +45,7 @@ class RateLimiter {
   /**
    * Token bucket algorithm
    */
-  private tokenBucketCheck(now: number): RateLimitResult {
+  private refill(now: number): void {
     // Refill tokens based on elapsed time
     const elapsed = now - this.lastRefill;
     const refillRate = this.config.maxRequests / this.config.windowMs;
@@ -63,6 +63,11 @@ class RateLimiter {
           ? now
           : this.lastRefill + tokensToAdd / refillRate;
     }
+
+  }
+
+  private tokenBucketCheck(now: number): RateLimitResult {
+    this.refill(now);
 
     // Check if request can proceed
     if (this.tokens > 0) {
@@ -135,7 +140,11 @@ class RateLimiter {
     strategy: string;
   } {
     const strategy = this.config.strategy || 'token-bucket';
-    let remaining = this.tokens;
+    let remaining: number;
+    if (strategy !== 'sliding-window') {
+      this.refill(Date.now());
+    }
+    remaining = this.tokens;
 
     if (strategy === 'sliding-window') {
       // Tokens are only meaningful for token-bucket; count live requests
