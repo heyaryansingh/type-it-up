@@ -7,7 +7,21 @@ export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "Invalid JSON body" },
+        { status: 400 }
+      );
+    }
+    if (!body || typeof body !== "object") {
+      return NextResponse.json(
+        { success: false, error: "Invalid JSON body" },
+        { status: 400 }
+      );
+    }
     const { document, format, title, author } = body as {
       document: DocumentJSON;
       format: "latex" | "markdown" | "overleaf" | "all";
@@ -25,6 +39,20 @@ export async function POST(request: NextRequest) {
     if (!format) {
       return NextResponse.json(
         { success: false, error: "Missing format" },
+        { status: 400 }
+      );
+    }
+
+    if (!Array.isArray(document.pages)) {
+      return NextResponse.json(
+        { success: false, error: "document.pages must be an array" },
+        { status: 400 }
+      );
+    }
+
+    if (!["latex", "markdown", "overleaf", "all"].includes(format)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid format" },
         { status: 400 }
       );
     }
