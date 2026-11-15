@@ -147,7 +147,7 @@ export function isPDF(buffer: Buffer): boolean {
  * ```
  */
 export function getImageType(buffer: Buffer): string | null {
-  const header = buffer.slice(0, 8);
+  const header = buffer.slice(0, 12);
 
   // JPEG: FF D8 FF
   if (header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff) {
@@ -179,7 +179,8 @@ export function getImageType(buffer: Buffer): string | null {
     header[0] === 0x52 &&
     header[1] === 0x49 &&
     header[2] === 0x46 &&
-    header[3] === 0x46
+    header[3] === 0x46 &&
+    header.toString("ascii", 8, 12) === "WEBP"
   ) {
     return "webp";
   }
