@@ -6,7 +6,18 @@ export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      body = null;
+    }
+    if (!body || typeof body !== "object") {
+      return NextResponse.json(
+        { success: false, error: "Invalid JSON body" },
+        { status: 400 }
+      );
+    }
     const { document, groqApiKey } = body as {
       document: DocumentJSON;
       groqApiKey?: string;
@@ -18,9 +29,15 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (!Array.isArray(document.pages)) {
+      return NextResponse.json(
+        { success: false, error: "document.pages must be an array" },
+        { status: 400 }
+      );
+    }
 
     // Use provided API key or fall back to environment variable
-    const apiKey = groqApiKey || process.env.GROQ_API_KEY;
+    const apiKey = (typeof groqApiKey === "string" && groqApiKey) || process.env.GROQ_API_KEY;
 
     const result = await analyzeDocument(document, apiKey);
 
